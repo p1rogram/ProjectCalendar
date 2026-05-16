@@ -10,7 +10,7 @@ import kotlinx.coroutines.flow.first
 import java.time.LocalDate
 
 
-class GetCalendarDayUseCase(
+class GetCalendarUseCase(
     private val eventRepository: EventRepository,
     private val taskRepository: TaskRepository,
     private val noteRepository: NoteRepository

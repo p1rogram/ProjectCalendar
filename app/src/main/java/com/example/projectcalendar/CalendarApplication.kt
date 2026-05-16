@@ -1,4 +1,8 @@
 package com.example.projectcalendar
 
-class CalendarApplication {
+import android.app.Application
+import dagger.hilt.android.HiltAndroidApp
+
+@HiltAndroidApp
+class CalendarApplication : Application() {
 }

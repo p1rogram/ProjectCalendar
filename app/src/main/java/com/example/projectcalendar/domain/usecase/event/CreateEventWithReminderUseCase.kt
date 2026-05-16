@@ -5,7 +5,7 @@ import com.example.projectcalendar.data.repository.ReminderRepository
 import com.example.projectcalendar.domain.model.Event
 import com.example.projectcalendar.domain.model.Reminder
 
-class CreateEventWithRemindersUseCase(
+class CreateEventWithReminderUseCase(
     private val eventRepository: EventRepository,
     private val reminderRepository: ReminderRepository
 ) {
