@@ -1,0 +1,16 @@
+package com.example.projectcalendar.domain.usecase.event
+
+import com.example.projectcalendar.data.repository.EventRepository
+import com.example.projectcalendar.data.repository.ReminderRepository
+
+class DeleteEventUseCase(
+    private val eventRepository: EventRepository,
+    private val reminderRepository: ReminderRepository
+) {
+    suspend operator fun invoke(eventId: Long) {
+        val event = eventRepository.getEventById(eventId)
+        require(event != null) { "Event not found with id: $eventId" }
+        reminderRepository.deleteRemindersByEventId(eventId)
+        eventRepository.deleteEvent(event)
+    }
+}
