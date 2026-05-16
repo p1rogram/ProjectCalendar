@@ -4,7 +4,6 @@ import com.example.projectcalendar.data.repository.EventRepository
 import com.example.projectcalendar.data.repository.NoteRepository
 import com.example.projectcalendar.data.repository.ReminderRepository
 import com.example.projectcalendar.data.repository.TaskRepository
-import com.example.projectcalendar.domain.model.Task
 import com.example.projectcalendar.domain.usecase.calendar.GetCalendarUseCase
 import com.example.projectcalendar.domain.usecase.event.CreateEventWithReminderUseCase
 import com.example.projectcalendar.domain.usecase.event.DeleteEventUseCase
@@ -16,11 +15,11 @@ import com.example.projectcalendar.domain.usecase.task.ToggleTaskCompletionUseCa
 import dagger.Module
 import dagger.Provides
 import dagger.hilt.InstallIn
+import dagger.hilt.android.components.ViewModelComponent
 import dagger.hilt.android.scopes.ViewModelScoped
-import dagger.hilt.components.SingletonComponent
 
 @Module
-@InstallIn(SingletonComponent::class)
+@InstallIn(ViewModelComponent::class)
 object UseCaseModule {
 
     @ViewModelScoped
