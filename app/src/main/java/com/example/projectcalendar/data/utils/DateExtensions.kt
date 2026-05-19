@@ -17,7 +17,7 @@ internal fun Long.toLocalDateTime(): LocalDateTime =
 internal fun Long.toLocalDate(): LocalDate =
     toLocalDateTime().toLocalDate()
 
-/** Понял, спасибо
+/**
  * Конвертирует LocalDateTime в миллисекунды (для записи в БД)
  */
 internal fun LocalDateTime.toEpochMillis(): Long =

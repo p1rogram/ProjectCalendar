@@ -1,4 +1,4 @@
-package com.example.projectcalendar
+package com.example.projectcalendar.presentation
 
 import android.os.Bundle
 import androidx.activity.ComponentActivity
