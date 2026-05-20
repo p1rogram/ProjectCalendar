@@ -2,23 +2,17 @@
 # Gradle
 .gradle/
 build/
-!gradle-wrapper.jar
+!gradle.properties
 
-# Android
-*.apk
-*.aar
-*.dex
+# Dependencies
+.libs/
+lib/
 
 # IDE
 .idea/
 *.iml
 *.ipr
 *.iws
-.vscode/
-
-# OS
-.DS_Store
-Thumbs.db
 
 # Logs
 *.log
@@ -26,10 +20,136 @@ Thumbs.db
 # Environment
 .env
 .env.local
-*.env*
+*.env
 
-# Temporary files
+# OS
+.DS_Store
+Thumbs.db
+
+# Archives
+*.zip
+*.tar.gz
+*.tar.bz2
+*.tar.xz
+*.gz
+*.bz2
+*.xz
+*.7z
+*.rar
+*.jar
+*.war
+*.ear
+
+# Testing
+test-results/
+*.junit
+
+# Coverage
+coverage/
+jacoco/
+
+# Node
+node_modules/
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+env/
+venv/
+.venv/
+pip-log.txt
+pip-delete-this-directory.txt
+.tox/
+.coverage
+.coverage.*
+.cache
+nosetests.xml
+coverage.xml
+*.cover
+*.log
+.git/modules/
+*.sublime-workspace
+
+# Compiled and binary
+*.class
+*.o
+*.a
+*.obj
+*.out
+*.exe
+*.dll
+*.so
+*.dylib
+*.pyc
+*.pyo
+*.nib
+*.db
+*.db-journal
+*.bin
+*.hex
+*.dat
+*.idx
+*.jar
+*.war
+*.apk
+*.aab
+*.aabx
+*.apks
+*.xpi
+*.crx
+*.deb
+*.rpm
+*.msi
+*.dmg
+*.iso
+*.img
+*.vmdk
+*.ova
+*.ovf
+*.box
+*.vagrant
+*.gem
+*.whl
+*.egg-info/
+*.egg
+*.swp
+*.swo
 *.tmp
 *.temp
-*~
+*.bak
+*.backup
+*.orig
+*.rej
+*.pyc
+*.pyo
+*.pyd
+*.class
+*.o
+*.so
+*.dll
+*.exe
+*.bin
+*.out
+*.pid
+*.seed
+*.prof
+*.pyc
+*.pyo
+*.pyd
+*.class
+*.o
+*.so
+*.dll
+*.exe
+*.bin
+*.out
+*.pid
+*.seed
+*.prof
 ```
