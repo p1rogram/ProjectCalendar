@@ -1,5 +1,4 @@
 plugins {
-    // 🔴 ВАЖНО: Android-плагин должен идти ПЕРВЫМ
     alias(libs.plugins.android.application)
     alias(libs.plugins.kotlin.compose)
     id("com.google.devtools.ksp")
@@ -44,10 +43,8 @@ kotlin {
 }
 
 dependencies {
-    val room_version = "2.8.4"
 
-    coreLibraryDesugaring("com.android.tools:desugar_jdk_libs:2.0.4")
-
+    coreLibraryDesugaring(libs.desugar.jdk.libs)
     implementation(libs.androidx.core.ktx)
     implementation(libs.androidx.lifecycle.runtime.ktx)
     implementation(libs.androidx.activity.compose)
@@ -56,9 +53,11 @@ dependencies {
     implementation(libs.androidx.compose.ui.graphics)
     implementation(libs.androidx.compose.ui.tooling.preview)
     implementation(libs.androidx.compose.material3)
-    implementation("androidx.hilt:hilt-navigation-compose:1.2.0") // или актуальная версия
-    implementation("androidx.lifecycle:lifecycle-runtime-compose:2.8.7") // для collectAsStateWithLifecycle
-    implementation("androidx.compose.foundation:foundation:1.7.0") // для HorizontalPager
+    implementation(libs.androidx.hilt.navigation.compose)
+    implementation(libs.androidx.lifecycle.runtime.compose)
+    implementation(libs.androidx.compose.foundation)
+    implementation(libs.androidx.hilt.navigation.compose)
+
 
     testImplementation(libs.junit)
     androidTestImplementation(libs.androidx.junit)
@@ -68,12 +67,11 @@ dependencies {
     debugImplementation(libs.androidx.compose.ui.tooling)
     debugImplementation(libs.androidx.compose.ui.test.manifest)
 
-    // Room
-    implementation("androidx.room:room-ktx:${room_version}")
-    implementation("androidx.room:room-paging:${room_version}")
-    ksp("androidx.room:room-compiler:$room_version")
+    implementation(libs.androidx.room.ktx)
+    implementation(libs.androidx.room.paging)
+    ksp(libs.androidx.room.compiler)
 
-    // Hilt — используйте 2.58+ для совместимости с AGP 9.0+
-    implementation("com.google.dagger:hilt-android:2.59.2")
-    ksp("com.google.dagger:hilt-compiler:2.59.2")
+    implementation(libs.hilt.android)
+    ksp(libs.hilt.compiler)
+    implementation(libs.androidx.lifecycle.viewmodel.ktx)
 }

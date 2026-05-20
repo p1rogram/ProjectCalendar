@@ -3,13 +3,14 @@ package com.example.projectcalendar.presentation.ui.common
 import com.example.projectcalendar.domain.model.CalendarDay
 import java.time.LocalDate
 import java.time.YearMonth
-/////////РАЗОБРАТЬ
 data class CalendarUiState(
-    val status: LoadStatus,
-    val pages : List<CalendarPage>,
-    val initialPageIndex : Int,
-    val selectedDate: LocalDate?,
-    val showAddItemSheet: Boolean
+    val status: LoadStatus = LoadStatus.Loading,
+    val pages : List<CalendarPage> = emptyList(),
+    val initialPageIndex : Int = 0,
+    val selectedDate : LocalDate = LocalDate.now(),
+    val showAddItemSheet : Boolean = false,
+    val showDetailsSheet : Boolean = false,
+    val currentAddMode: AddMode? = null
 ) {
 }
 sealed class LoadStatus(){
@@ -17,10 +18,14 @@ sealed class LoadStatus(){
     object Success : LoadStatus()
     object Error : LoadStatus()
 }
+sealed class AddMode(){
+    object Event : AddMode()
+    object Reminder : AddMode()
+    object Note : AddMode()
+}
+
 data class CalendarPage(
     val yearMonth: YearMonth,
-    val days : List<CalendarDay>,
+    val grid : List<List<CalendarDay?>>,
     val isSecondHalf: Boolean
-){
-
-}
+){}
