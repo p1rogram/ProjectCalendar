@@ -56,6 +56,9 @@ dependencies {
     implementation(libs.androidx.compose.ui.graphics)
     implementation(libs.androidx.compose.ui.tooling.preview)
     implementation(libs.androidx.compose.material3)
+    implementation("androidx.hilt:hilt-navigation-compose:1.2.0") // или актуальная версия
+    implementation("androidx.lifecycle:lifecycle-runtime-compose:2.8.7") // для collectAsStateWithLifecycle
+    implementation("androidx.compose.foundation:foundation:1.7.0") // для HorizontalPager
 
     testImplementation(libs.junit)
     androidTestImplementation(libs.androidx.junit)

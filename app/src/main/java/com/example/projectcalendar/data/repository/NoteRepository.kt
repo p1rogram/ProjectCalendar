@@ -48,6 +48,9 @@ class NoteRepository(
         noteDao.getAllNotes()
             .map { entities -> entities.map { it.toDomain() } }
 
+    suspend fun getNotesForDateRange(start: LocalDate, end: LocalDate): Flow<List<Note>> =
+        noteDao.getNotesByDateRange(start.toStartOfDayMillis(), end.toStartOfDayMillis())
+            .map { entities -> entities.map { it.toDomain() } }
     /** Разовое получение заметки по ID (для экрана редактирования) */
     suspend fun getNoteById(id: Long): Note? =
         noteDao.getNoteById(id)?.toDomain()

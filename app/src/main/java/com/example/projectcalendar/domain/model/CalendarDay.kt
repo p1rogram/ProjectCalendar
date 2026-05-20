@@ -17,6 +17,6 @@ data class CalendarDay(
     val hasTasks : Boolean = tasks.isNotEmpty()
     val hasNotes : Boolean = notes.isNotEmpty()
     val isEmpty : Boolean = (!hasEvents && !hasTasks && !hasNotes)
-    val isToday : Boolean = date == LocalDate.now()
+    val isToday: Boolean = date == LocalDate.now()
     val isPast : Boolean = date.isBefore(LocalDate.now())
 }

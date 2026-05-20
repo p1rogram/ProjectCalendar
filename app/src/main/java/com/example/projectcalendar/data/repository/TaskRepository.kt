@@ -53,6 +53,10 @@ class TaskRepository(
         taskDao.getTasksByDate(date.toStartOfDayMillis())
             .map { entities -> entities.map { it.toDomain() } }
 
+    suspend fun getTasksForDateRange(start: LocalDate, end: LocalDate): Flow<List<Task>> =
+        taskDao.getTasksByDateRange(start.toStartOfDayMillis(), end.toStartOfDayMillis())
+            .map { entities -> entities.map { it.toDomain() } }
+
     /** Разовое получение задачи по ID */
     suspend fun getTaskById(id: Long): Task? =
         taskDao.getTaskById(id)?.toDomain()

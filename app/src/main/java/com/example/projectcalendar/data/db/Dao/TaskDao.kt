@@ -16,6 +16,8 @@ interface TaskDao {
     @Insert(onConflict = OnConflictStrategy.REPLACE)
     suspend fun insertTask(task: TaskEntity): Long
 
+    @Query("SELECT * FROM tasks WHERE date BETWEEN :start AND :end ORDER BY priority DESC")
+    fun getTasksByDateRange(start: Long, end: Long): Flow<List<TaskEntity>>
     @Update
     suspend fun updateTask(task: TaskEntity)
 
