@@ -20,7 +20,7 @@ sealed class LoadStatus(){
 }
 sealed class AddMode(){
     object Event : AddMode()
-    object Reminder : AddMode()
+    object Task : AddMode()
     object Note : AddMode()
 }
 

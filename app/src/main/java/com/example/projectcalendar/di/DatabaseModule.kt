@@ -5,7 +5,6 @@ import androidx.room.Room
 import com.example.projectcalendar.data.db.AppDatabase
 import com.example.projectcalendar.data.db.Dao.EventDao
 import com.example.projectcalendar.data.db.Dao.NoteDao
-import com.example.projectcalendar.data.db.Dao.ReminderDao
 import com.example.projectcalendar.data.db.Dao.TaskDao
 import dagger.Module
 import dagger.Provides
@@ -24,10 +23,11 @@ object DatabaseModule {
         @ApplicationContext context: Context  // ← Добавь параметр
     ): AppDatabase {
         return Room.databaseBuilder(  // ← Используй builder, а не просто AppDatabase
-            context,
-            AppDatabase::class.java,
-            "calendar.db"  // ← Имя твоей БД
-        ).build()
+                context,
+                AppDatabase::class.java,
+                "calendar.db"  // ← Имя твоей БД
+            ).fallbackToDestructiveMigration(false) // ← ДОБАВИТЬ ЭТУ СТРОКУ
+            .build()
     }
 
     @Singleton
@@ -52,14 +52,6 @@ object DatabaseModule {
         appDatabase: AppDatabase
     ): NoteDao {
         return appDatabase.noteDao()
-    }
-
-    @Singleton
-    @Provides
-    fun provideReminderDao(
-        appDatabase: AppDatabase
-    ): ReminderDao {
-        return appDatabase.reminderDao()
     }
 
 }

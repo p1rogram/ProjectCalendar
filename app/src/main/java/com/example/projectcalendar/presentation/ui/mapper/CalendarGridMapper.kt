@@ -6,8 +6,9 @@ import com.example.projectcalendar.domain.model.CalendarDay
 import com.example.projectcalendar.data.utils.getMonthDays
 import com.example.projectcalendar.data.utils.weekOffset
 import java.time.LocalDate
+import javax.inject.Inject
 
-class CalendarGridMapper {
+class CalendarGridMapper @Inject constructor() {
 
     @RequiresApi(Build.VERSION_CODES.O)
     fun map(date: LocalDate): List<List<CalendarDay?>> {

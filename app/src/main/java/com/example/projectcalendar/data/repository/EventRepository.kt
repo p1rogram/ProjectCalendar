@@ -25,6 +25,7 @@ class EventRepository(
         description = description.takeIf { it.isNotBlank() },
         startDateTime = startDateTime.toLocalDateTime(),
         isAllDay = isAllDay,
+        isReminder = isReminder,
         isImportant = isImportant,
         recurrenceType = runCatching { RecurrenceType.valueOf(recurrenceType) }
             .getOrDefault(RecurrenceType.NONE),
@@ -40,6 +41,7 @@ class EventRepository(
         description = description ?: "",
         startDateTime = startDateTime.toEpochMillis(),
         isAllDay = isAllDay,
+        isReminder = isReminder,
         isImportant = isImportant,
         recurrenceType = recurrenceType.name,
         customIntervalDays = customIntervalDays,

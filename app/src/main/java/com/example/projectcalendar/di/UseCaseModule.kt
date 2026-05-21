@@ -2,16 +2,13 @@ package com.example.projectcalendar.di
 
 import com.example.projectcalendar.data.repository.EventRepository
 import com.example.projectcalendar.data.repository.NoteRepository
-import com.example.projectcalendar.data.repository.ReminderRepository
 import com.example.projectcalendar.data.repository.TaskRepository
 import com.example.projectcalendar.domain.usecase.calendar.GetCalendarMonthUseCase
 import com.example.projectcalendar.domain.usecase.calendar.GetCalendarUseCase
-import com.example.projectcalendar.domain.usecase.event.CreateEventWithReminderUseCase
+import com.example.projectcalendar.domain.usecase.event.CreateEventUseCase
 import com.example.projectcalendar.domain.usecase.event.DeleteEventUseCase
 import com.example.projectcalendar.domain.usecase.note.CreateNoteUseCase
 import com.example.projectcalendar.domain.usecase.note.GetNotesForDateUseCase
-import com.example.projectcalendar.domain.usecase.reminder.GetPendingRemindersUseCase
-import com.example.projectcalendar.domain.usecase.reminder.MarkReminderTriggeredUseCase
 import com.example.projectcalendar.domain.usecase.task.CreateTaskUseCase
 import com.example.projectcalendar.domain.usecase.task.GetTasksForDateUseCase
 import com.example.projectcalendar.domain.usecase.task.ToggleTaskCompletionUseCase
@@ -38,11 +35,10 @@ object UseCaseModule {
 
     @ViewModelScoped
     @Provides
-    fun provideCreateEventWithReminderUseCase(
+    fun provideCreateEventUseCase(
         eventRepo: EventRepository,
-        reminderRepo: ReminderRepository
-    ): CreateEventWithReminderUseCase {
-        return CreateEventWithReminderUseCase(eventRepo,reminderRepo)
+    ): CreateEventUseCase {
+        return CreateEventUseCase(eventRepo)
     }
 
 
@@ -59,28 +55,9 @@ object UseCaseModule {
     @Provides
     fun provideDeleteEventUseCase(
         eventRepo: EventRepository,
-        reminderRepo: ReminderRepository
     ): DeleteEventUseCase {
-        return DeleteEventUseCase(eventRepo,reminderRepo)
+        return DeleteEventUseCase(eventRepo)
     }
-
-    @ViewModelScoped
-    @Provides
-    fun provideGetPendingRemindersUseCase(
-        reminderRepo: ReminderRepository
-    ): GetPendingRemindersUseCase {
-        return GetPendingRemindersUseCase(reminderRepo)
-    }
-
-    @ViewModelScoped
-    @Provides
-    fun provideMarkReminderAsDoneUseCase(
-        reminderRepo: ReminderRepository
-    ): MarkReminderTriggeredUseCase {
-        return MarkReminderTriggeredUseCase(reminderRepo)
-    }
-
-
     @ViewModelScoped
     @Provides
     fun provideGetTasksForDateUseCase(

@@ -9,7 +9,7 @@ class CreateNoteUseCase @Inject constructor(
 ) {
     suspend operator fun invoke(note: Note): Long {
         // Валидация входных данных
-        require(note.content.isNotBlank()) { "Content cannot be blank" }
+        require(note.isValid()) { "Content cannot be blank" }
 
         // Сохранение и возврат ID
         return noteRepository.addNote(note)

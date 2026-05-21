@@ -30,6 +30,7 @@ data class EventEntity(
     val startDateTime: Long,            // Обязательное (дата события)
 
     val isAllDay: Boolean = false,      // По умолчанию — не весь день
+    val isReminder: Boolean = false,     // По умолчанию — не напоминание
     val isImportant: Boolean = false,   // По умолчанию — не важное
 
     val recurrenceType: String = "NONE", // По умолчанию — без повторения
