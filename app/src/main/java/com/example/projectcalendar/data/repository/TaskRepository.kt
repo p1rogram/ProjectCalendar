@@ -5,12 +5,15 @@
     import com.example.projectcalendar.data.utils.toEpochMillis
     import com.example.projectcalendar.data.utils.toLocalDate
     import com.example.projectcalendar.data.utils.toLocalDateTime
+    import com.example.projectcalendar.data.utils.toNextDayStartMillis
     import com.example.projectcalendar.data.utils.toStartOfDayMillis
+    import com.example.projectcalendar.domain.model.Note
     import com.example.projectcalendar.domain.model.Task
     import com.example.projectcalendar.domain.model.type.Priority
     import kotlinx.coroutines.flow.Flow
     import kotlinx.coroutines.flow.map
     import java.time.LocalDate
+    import kotlin.collections.map
 
     class TaskRepository(
         private val taskDao: TaskDao
@@ -56,7 +59,11 @@
         suspend fun getTasksForDateRange(start: LocalDate, end: LocalDate): Flow<List<Task>> =
             taskDao.getTasksByDateRange(start.toStartOfDayMillis(), end.toStartOfDayMillis())
                 .map { entities -> entities.map { it.toDomain() } }
-
+        suspend fun getTasksForDateRangeOnce(start: LocalDate, end: LocalDate): List<Task> =
+            taskDao.getTasksByDateRangeOnce(
+                start.toStartOfDayMillis(),
+                end.toNextDayStartMillis()
+            ).map { it.toDomain() }
         /** Разовое получение задачи по ID */
         suspend fun getTaskById(id: Long): Task? =
             taskDao.getTaskById(id)?.toDomain()

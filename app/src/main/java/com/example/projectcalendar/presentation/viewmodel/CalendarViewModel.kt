@@ -1,243 +1,294 @@
-    package com.example.projectcalendar.presentation.viewmodel
+package com.example.projectcalendar.presentation.viewmodel
 
-    import android.os.Build
-    import android.util.Log
-    import androidx.annotation.RequiresApi
-    import androidx.lifecycle.ViewModel
-    import androidx.lifecycle.viewModelScope
-    import com.example.projectcalendar.data.repository.EventRepository
-    import com.example.projectcalendar.data.repository.NoteRepository
-    import com.example.projectcalendar.data.repository.TaskRepository
-    import com.example.projectcalendar.domain.model.Event
-    import com.example.projectcalendar.domain.model.Note
-    import com.example.projectcalendar.domain.model.Task
-    import com.example.projectcalendar.domain.model.type.Priority
-    import com.example.projectcalendar.domain.model.type.RecurrenceType
-    import com.example.projectcalendar.domain.usecase.calendar.GetCalendarMonthUseCase
-    import com.example.projectcalendar.presentation.ui.common.AddMode
-    import com.example.projectcalendar.presentation.ui.common.CalendarPage
-    import com.example.projectcalendar.presentation.ui.common.CalendarUiState
-    import com.example.projectcalendar.presentation.ui.common.LoadStatus
-    import com.example.projectcalendar.presentation.ui.components.AddItemCommand
-    import com.example.projectcalendar.presentation.ui.mapper.CalendarGridMapper
-    import dagger.hilt.android.lifecycle.HiltViewModel
-    import kotlinx.coroutines.flow.MutableStateFlow
-    import kotlinx.coroutines.flow.StateFlow
-    import kotlinx.coroutines.flow.asStateFlow
-    import kotlinx.coroutines.flow.first
-    import kotlinx.coroutines.launch
-    import java.time.LocalDate
-    import java.time.LocalDateTime
-    import java.time.YearMonth
-    import javax.inject.Inject
+import android.os.Build
+import android.util.Log
+import androidx.annotation.RequiresApi
+import androidx.lifecycle.ViewModel
+import androidx.lifecycle.viewModelScope
+import com.example.projectcalendar.data.repository.EventRepository
+import com.example.projectcalendar.data.repository.NoteRepository
+import com.example.projectcalendar.data.repository.TaskRepository
+import com.example.projectcalendar.domain.model.CalendarDay
+import com.example.projectcalendar.domain.model.Event
+import com.example.projectcalendar.domain.model.Note
+import com.example.projectcalendar.domain.model.Task
+import com.example.projectcalendar.domain.model.type.Priority
+import com.example.projectcalendar.domain.model.type.RecurrenceType
+import com.example.projectcalendar.domain.usecase.calendar.GetCalendarMonthUseCase
+import com.example.projectcalendar.presentation.ui.common.AddMode
+import com.example.projectcalendar.presentation.ui.common.CalendarPage
+import com.example.projectcalendar.presentation.ui.common.CalendarUiState
+import com.example.projectcalendar.presentation.ui.common.LoadStatus
+import com.example.projectcalendar.presentation.ui.calendar.components.AddItemCommand
+import com.example.projectcalendar.presentation.ui.mapper.CalendarGridMapper
+import dagger.hilt.android.lifecycle.HiltViewModel
+import kotlinx.collections.immutable.persistentListOf
+import kotlinx.collections.immutable.toImmutableList
+import kotlinx.coroutines.Job
+import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.flow.update  // ✅ ВАЖНЫЙ ИМПОРТ!
+import kotlinx.coroutines.launch
+import java.time.LocalDate
+import java.time.LocalDateTime
+import java.time.YearMonth
+import java.util.concurrent.atomic.AtomicBoolean
+import javax.inject.Inject
 
-    @HiltViewModel
-    class CalendarViewModel @Inject constructor(
-        private val mapper: CalendarGridMapper,
-        private val getCalendarMonthUseCase: GetCalendarMonthUseCase,
-        private val eventRepository: EventRepository,
-        private val taskRepository: TaskRepository,
-        private val noteRepository: NoteRepository,
-    ) : ViewModel() {
+@HiltViewModel
+class CalendarViewModel @Inject constructor(
+    private val mapper: CalendarGridMapper,
+    private val getCalendarMonthUseCase: GetCalendarMonthUseCase,
+    private val eventRepository: EventRepository,
+    private val taskRepository: TaskRepository,
+    private val noteRepository: NoteRepository,
+) : ViewModel() {
 
-        private val _uiState = MutableStateFlow(
-            CalendarUiState(
-                status = LoadStatus.Loading,
-                pages = emptyList(),
-                initialPageIndex = 0,
-                selectedDate = LocalDate.now(),
-                showAddItemSheet = false,
-                showDetailsSheet = false,
-                currentAddMode = null
-            )
+    private val _uiState = MutableStateFlow(
+        CalendarUiState(
+            status = LoadStatus.Loading,
+            pages = persistentListOf(),
+            initialPageIndex = 0,
+            selectedDate = LocalDate.now(),
+            showAddItemSheet = false,
+            showDetailsSheet = false,
+            currentAddMode = null
         )
-        val uiState: StateFlow<CalendarUiState> = _uiState.asStateFlow()
+    )
+    val uiState: StateFlow<CalendarUiState> = _uiState.asStateFlow()
 
-        @RequiresApi(Build.VERSION_CODES.O)
-        fun loadMonth(year: Int, month: Int, showLoading: Boolean = true) {
-            viewModelScope.launch {
-                try {
-                    if (_uiState.value.selectedDate.year != year || _uiState.value.selectedDate.monthValue != month) {
-                        _uiState.value = _uiState.value.copy(selectedDate = LocalDate.of(year, month, 1))
-                    }
-                    _uiState.value = _uiState.value.copy(status = LoadStatus.Loading)
+    // ✅ AtomicBoolean вместо @Volatile — полная потокобезопасность
+    private val isSaving = AtomicBoolean(false)
 
-                    val firstDay = LocalDate.of(year, month, 1)
-                    val emptyGrid = mapper.map(firstDay)
-                    val monthData = getCalendarMonthUseCase.invoke(YearMonth.of(year, month)).associateBy { it.date }
-                    val filledGrid = emptyGrid.map { week -> week.map { monthData[it?.date] ?: it } }
+    private var loadMonthJob: Job? = null
 
-                    _uiState.value = _uiState.value.copy(
-                        pages = filledGrid
-                            .chunked(4)
-                            .map { weekChunk ->
-                                if (weekChunk.size < 4) {
-                                    weekChunk + List(4 - weekChunk.size) { List(7) { null } }
-                                } else {
-                                    weekChunk
-                                }
-                            }
-                            .mapIndexed { pageIndex, column ->
-                                CalendarPage(
-                                    yearMonth = YearMonth.of(year, month),
-                                    grid = column,
-                                    isSecondHalf = pageIndex > 0
-                                )
-                            },
-                        status = LoadStatus.Success
-                    )
-                } catch (e: Exception) {
-                    _uiState.value = _uiState.value.copy(status = LoadStatus.Error)
-                    Log.e("CalendarViewModel", "Error loading month", e)
+    @RequiresApi(Build.VERSION_CODES.O)
+    fun loadMonth(year: Int, month: Int, showLoading: Boolean = true) {
+        loadMonthJob?.cancel()
+
+        loadMonthJob = viewModelScope.launch {
+            try {
+                if (_uiState.value.selectedDate.year != year || _uiState.value.selectedDate.monthValue != month) {
+                    _uiState.update { it.copy(selectedDate = LocalDate.of(year, month, 1)) }
+                    Log.d("uiState", " !=year != month uiState updated")
                 }
+                if (showLoading) {
+                    _uiState.update { it.copy(status = LoadStatus.Loading)
+                    }
+                    Log.d("uiState", "status = LoadStatus.Loading uiState updated")
+                }
+
+                val firstDay = LocalDate.of(year, month, 1)
+                val emptyGrid = mapper.map(firstDay)
+                val monthData = getCalendarMonthUseCase.invoke(YearMonth.of(year, month)).associateBy { it.date }
+
+                val filledGrid = emptyGrid.map { week ->
+                    week.map { monthData[it?.date] ?: it }.toImmutableList()
+                }.toImmutableList()
+
+                val newPages = filledGrid
+                    .chunked(4)
+                    .map { weekChunk ->
+                        if (weekChunk.size < 4) {
+                            weekChunk + List(4 - weekChunk.size) {
+                                List(7) { null as CalendarDay? }.toImmutableList()
+                            }
+                        } else {
+                            weekChunk
+                        }
+                    }
+                    .mapIndexed { pageIndex, column ->
+                        CalendarPage(
+                            yearMonth = YearMonth.of(year, month),
+                            grid = column.toImmutableList(),
+                            isSecondHalf = pageIndex > 0
+                        )
+                    }
+                    .toImmutableList()
+
+                // ✅ АТОМАРНОЕ обновление
+                _uiState.update { it.copy(pages = newPages, status = LoadStatus.Success) }
+                Log.d("uiState", "atomic update uiState updated")
+            } catch (e: Exception) {
+                if (e is kotlinx.coroutines.CancellationException) throw e
+                _uiState.update { it.copy(status = LoadStatus.Error) }
+                Log.e("CalendarViewModel", "Error loading month", e)
             }
         }
+    }
 
-        // === Обработчики событий UI ===
+    fun onDayClick(date: LocalDate) {
+        Log.d("dayClicking", "Day clicked $date")
+        _uiState.update { it.copy(selectedDate = date) }
+    }
 
-        fun onDayClick(date: LocalDate) {
-            _uiState.value = _uiState.value.copy(selectedDate = date)
+    fun onShowDetailsClick() {
+        Log.d("DetailsClicked", "Show details clicked")
+        _uiState.update { it.copy(showDetailsSheet = true) }
+    }
+
+    fun onAddClick(mode: AddMode) {
+        Log.d("CalendarViewModel", "onAddClick called with mode: $mode")
+        // ✅ Атомарная проверка + установка
+        _uiState.update { state ->
+            if (state.showAddItemSheet) {
+                Log.w("CalendarViewModel", "AddItemSheet already open, ignoring click")
+                state  // Возвращаем то же состояние
+            } else {
+                state.copy(showAddItemSheet = true, currentAddMode = mode)
+            }
         }
+    }
 
-        fun onShowDetailsClick() {
-            _uiState.value = _uiState.value.copy(showDetailsSheet = true)
-        }
-
-        fun onAddClick(mode: AddMode) {
-            _uiState.value = _uiState.value.copy(
-                showAddItemSheet = true,
-                currentAddMode = mode
-            )
-        }
-
-        fun closeSheets() {
-            _uiState.value = _uiState.value.copy(
+    fun closeSheets() {
+        Log.d("closeSheet", "sheets were Closed")
+        _uiState.update {
+            it.copy(
                 showAddItemSheet = false,
                 showDetailsSheet = false,
                 currentAddMode = null,
             )
         }
+    }
 
-        // === Сохранение новых элементов ===
-
-        // В начале класса CalendarViewModel добавь:
-        private var isSaving = false
-
-        @RequiresApi(Build.VERSION_CODES.O)
-        fun onAddItem(command: AddItemCommand) {
-            if (isSaving) return
-            isSaving = true
-
-            viewModelScope.launch {
-                try {
-                    Log.d("DEBUG_SAVE", "Saving ${command.mode} for ${command.date}")
-                    when (command.mode) {
-                        AddMode.Event -> {
-                            val newEvent = Event(
-                                id = null,
-                                title = command.title,
-                                description = command.description.takeIf { it.isNotBlank() },
-                                startDateTime = command.date.atTime(command.time ?: java.time.LocalTime.MIDNIGHT),
-                                isAllDay = command.time == null,
-                                isReminder = false,
-                                isImportant = true,
-                                recurrenceType = RecurrenceType.NONE,
-                                customIntervalDays = 0,
-                                recurrenceEndDate = null,
-                                createdAt = LocalDateTime.now(),
-                                updatedAt = null
-                            )
-                            eventRepository.addEvent(newEvent)
-
-                            // ✅ Обновление индикаторов БЕЗ вложенного launch
-                            val updatedEvents = eventRepository.getEventsForDateRange(command.date, command.date).first()
-                            val updatedTasks = taskRepository.getTasksForDateRange(command.date, command.date).first()
-                            val updatedNotes = noteRepository.getNotesForDateRange(command.date, command.date).first()
-                            updateDayIndicators(command.date, updatedEvents, updatedTasks, updatedNotes)
-                        }
-
-                        AddMode.Task -> {
-                            Log.i("CalendarViewModel", "Task creating is initiated")
-                            val newTask = Task(
-                                id = null,
-                                title = command.title,  // ✅ Исправлено: было ":TOOO"
-                                description = command.description.takeIf { it.isNotBlank() },  // ✅ Исправлено: было ":TODO"
-                                date = command.date,
-                                completedAt = null,
-                                createdAt = LocalDateTime.now(),
-                                updatedAt = null,
-                                priority = Priority.MEDIUM,
-                                isCompleted = false
-                            )
-                            taskRepository.addTask(newTask)
-
-                            // ✅ Обновление индикаторов БЕЗ вложенного launch
-                            val updatedEvents = eventRepository.getEventsForDateRange(command.date, command.date).first()
-                            val updatedTasks = taskRepository.getTasksForDateRange(command.date, command.date).first()
-                            val updatedNotes = noteRepository.getNotesForDateRange(command.date, command.date).first()
-                            updateDayIndicators(command.date, updatedEvents, updatedTasks, updatedNotes)
-                        }
-
-                        AddMode.Note -> {
-                            val newNote = Note(
-                                id = null,
-                                date = command.date,
-                                content = command.description,
-                                createdAt = LocalDateTime.now(),
-                                updatedAt = null
-                            )
-                            noteRepository.addNote(newNote)
-
-                            // ✅ Обновление индикаторов БЕЗ вложенного launch
-                            val updatedEvents = eventRepository.getEventsForDateRange(command.date, command.date).first()
-                            val updatedTasks = taskRepository.getTasksForDateRange(command.date, command.date).first()
-                            val updatedNotes = noteRepository.getNotesForDateRange(command.date, command.date).first()
-                            updateDayIndicators(command.date, updatedEvents, updatedTasks, updatedNotes)
-                        }
-                    }
-                } catch (e: Exception) {
-                    Log.e("VM_ERROR", "onAddItem ERROR", e)
-                    e.printStackTrace()
-                } finally {
-                    isSaving = false  // ✅ Сброс флага
-                }
-            }
+    @RequiresApi(Build.VERSION_CODES.O)
+    fun onAddItem(command: AddItemCommand) {
+        // ✅ Атомарная проверка и установка флага
+        if (!isSaving.compareAndSet(false, true)) {
+            Log.w("CalendarViewModel", "onAddItem called while saving, ignoring")
+            return
         }
 
-        // Вспомогательный метод для перезагрузки текущего месяца после сохранения
-        @RequiresApi(Build.VERSION_CODES.O)
-        private fun refreshCurrentMonth() {
-            val currentMonth = _uiState.value.pages.firstOrNull()?.yearMonth
-            currentMonth?.let { ym ->
-                loadMonth(ym.year, ym.monthValue, showLoading = false) // ← 🔧 Ключевое изменение
-            }
-        }
-        fun updateDayIndicators(date: LocalDate, newEvents: List<Event> = emptyList(),
-                                newTasks: List<Task> = emptyList(), newNotes: List<Note> = emptyList()) {
+        viewModelScope.launch {
+            try {
+                Log.d("DEBUG_SAVE", "Saving ${command.mode} for ${command.date}")
 
-            val currentPages = _uiState.value.pages
-            val updatedPages = currentPages.map { page ->
-                val updatedGrid = page.grid.map { column ->
-                    column.map { cell ->
-                        // Обновляем ТОЛЬКО если дата совпадает
-                        if (cell?.date == date) {
-                            cell.copy(
-                                events = newEvents,
-                                tasks = newTasks,
-                                notes = newNotes
-                            )
-                        } else {
-                            cell // Возвращаем ту же ссылку → Compose не перерисует
-                        }
+                when (command.mode) {
+                    AddMode.Event -> {
+                        Log.d("CalendarViewModel", "Event creating is initiated")
+                        val newEvent = Event(
+                            id = null,
+                            title = command.title,
+                            description = command.description.takeIf { it.isNotBlank() },
+                            startDateTime = command.date.atTime(command.time ?: java.time.LocalTime.MIDNIGHT),
+                            isAllDay = command.time == null,
+                            isReminder = false,
+                            isImportant = command.isImportant,
+                            recurrenceType = RecurrenceType.NONE,
+                            customIntervalDays = 0,
+                            recurrenceEndDate = null,
+                            createdAt = LocalDateTime.now(),
+                            updatedAt = null
+                        )
+                        eventRepository.addEvent(newEvent)
+                    }
+
+                    AddMode.Task -> {
+                        Log.d("CalendarViewModel", "Task creating is initiated")
+                        val newTask = Task(
+                            id = null,
+                            title = command.title,
+                            description = command.description.takeIf { it.isNotBlank() },
+                            date = command.date,
+                            completedAt = null,
+                            createdAt = LocalDateTime.now(),
+                            updatedAt = null,
+                            priority = Priority.MEDIUM,
+                            isCompleted = false
+                        )
+                        taskRepository.addTask(newTask)
+                    }
+
+                    AddMode.Note -> {
+                        Log.d("CalendarViewModel", "Note creating is initiated")
+                        val newNote = Note(
+                            id = null,
+                            date = command.date,
+                            content = command.description,
+                            createdAt = LocalDateTime.now(),
+                            updatedAt = null
+                        )
+                        noteRepository.addNote(newNote)
                     }
                 }
-                // Создаём новую страницу только если сетка реально изменилась
-                if (updatedGrid != page.grid) page.copy(grid = updatedGrid) else page
-            }
 
-            // Обновляем состояние только если что-то изменилось
-            if (updatedPages != currentPages) {
-                _uiState.value = _uiState.value.copy(pages = updatedPages)
+                // ✅ СНАЧАЛА все INSERT'ы, ПОТОМ ОДИН SELECT и ОДНО обновление
+                // Это критично! Иначе каждая корутина будет читать "свою версию" БД
+                val updatedEvents = eventRepository.getEventsForDateRangeOnce(command.date, command.date)
+                val updatedTasks = taskRepository.getTasksForDateRangeOnce(command.date, command.date)
+                val updatedNotes = noteRepository.getNotesForDateRangeOnce(command.date, command.date)
+
+                // ✅ АТОМАРНОЕ обновление стейта
+                updateDayIndicatorsAtomic(command.date, updatedEvents, updatedTasks, updatedNotes)
+
+            } catch (e: Exception) {
+                Log.e("VM_ERROR", "onAddItem ERROR", e)
+                e.printStackTrace()
+            } finally {
+                isSaving.set(false)
             }
         }
     }
+
+    /**
+     * ✅ АТОМАРНОЕ обновление индикаторов дня.
+     * Использует StateFlow.update { } — CAS-операция, которая гарантирует,
+     * что если другой поток изменит стейт между чтением и записью,
+     * операция повторится с новым значением.
+     */
+    private fun updateDayIndicatorsAtomic(
+        date: LocalDate,
+        newEvents: List<Event>,
+        newTasks: List<Task>,
+        newNotes: List<Note>
+    ) {
+        Log.d("updInd", "updateDayIndAtomic called $date")
+        Log.i("updInd", "new TasksCount : ${newTasks.size}")
+        Log.i("updInd", "new NotesCount : ${newNotes.size}")
+        Log.i("updInd", "new EventsCount : ${newEvents.size}")
+        _uiState.update { state ->
+            var anyPageChanged = false
+
+            val updatedPages = state.pages.map { page ->
+                var thisPageChanged = false
+
+                val updatedGrid = page.grid.map { column ->
+                    column.map { cell ->
+                        if (cell?.date == date) {
+                            thisPageChanged = true
+                            cell.copy(
+                                events = newEvents.toImmutableList(),
+                                tasks = newTasks.toImmutableList(),
+                                notes = newNotes.toImmutableList()
+                            )
+                        } else {
+                            cell
+                        }
+                    }.toImmutableList()
+                }.toImmutableList()
+
+                if (thisPageChanged) {
+                    anyPageChanged = true
+                    page.copy(grid = updatedGrid)
+                } else {
+                    page
+                }
+            }.toImmutableList()
+
+            if (anyPageChanged) {
+                state.copy(pages = updatedPages)
+            } else {
+                state  // Ничего не изменилось
+            }
+        }
+    }
+
+    @RequiresApi(Build.VERSION_CODES.O)
+    private fun refreshCurrentMonth() {
+        val currentMonth = _uiState.value.pages.firstOrNull()?.yearMonth
+        currentMonth?.let { ym ->
+            loadMonth(ym.year, ym.monthValue, showLoading = false)
+        }
+    }
+}

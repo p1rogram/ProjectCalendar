@@ -4,6 +4,7 @@ import com.example.projectcalendar.data.repository.EventRepository
 import com.example.projectcalendar.data.repository.NoteRepository
 import com.example.projectcalendar.data.repository.TaskRepository
 import com.example.projectcalendar.domain.model.CalendarDay
+import kotlinx.collections.immutable.toImmutableList
 import kotlinx.coroutines.async
 import kotlinx.coroutines.coroutineScope
 import kotlinx.coroutines.flow.first
@@ -49,9 +50,9 @@ class GetCalendarMonthUseCase(
 
             CalendarDay(
                 date = currentDate,
-                events = eventsForDay,
-                tasks = tasksForDay,
-                notes = notesForDay
+                events = eventsForDay.toImmutableList(),
+                tasks = tasksForDay.toImmutableList(),
+                notes = notesForDay.toImmutableList()
             )
         }
     }

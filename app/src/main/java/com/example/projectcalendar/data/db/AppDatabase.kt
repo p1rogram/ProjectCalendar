@@ -17,7 +17,7 @@ import com.example.projectcalendar.data.db.Entity.TaskEntity
         TaskEntity::class,
         NoteEntity::class,
     ],
-    version = 2 ,
+    version = 1 ,
     exportSchema = true
 
 )

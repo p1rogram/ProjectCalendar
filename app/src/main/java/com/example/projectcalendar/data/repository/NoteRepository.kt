@@ -5,6 +5,7 @@ import com.example.projectcalendar.data.db.Entity.NoteEntity
 import com.example.projectcalendar.data.utils.toEpochMillis
 import com.example.projectcalendar.data.utils.toLocalDate
 import com.example.projectcalendar.data.utils.toLocalDateTime
+import com.example.projectcalendar.data.utils.toNextDayStartMillis
 import com.example.projectcalendar.data.utils.toStartOfDayMillis
 import com.example.projectcalendar.domain.model.Note
 import kotlinx.coroutines.flow.Flow
@@ -54,6 +55,11 @@ class NoteRepository(
     /** Разовое получение заметки по ID (для экрана редактирования) */
     suspend fun getNoteById(id: Long): Note? =
         noteDao.getNoteById(id)?.toDomain()
+    suspend fun getNotesForDateRangeOnce(start: LocalDate, end: LocalDate): List<Note> =
+        noteDao.getNotesByDateRangeOnce(
+            start.toStartOfDayMillis(),
+            end.toNextDayStartMillis()
+        ).map { it.toDomain() }
 
     /** Сохранить новую заметку */
     suspend fun addNote(note: Note): Long =

@@ -74,4 +74,5 @@ dependencies {
     implementation(libs.hilt.android)
     ksp(libs.hilt.compiler)
     implementation(libs.androidx.lifecycle.viewmodel.ktx)
+    implementation(libs.kotlinx.collections.immutable)
 }

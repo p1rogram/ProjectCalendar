@@ -3,13 +3,13 @@ package com.example.projectcalendar.presentation.ui.screen
 import android.app.Activity
 import android.graphics.drawable.ColorDrawable
 import android.os.Build
+import android.util.Log
 import androidx.annotation.RequiresApi
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
-import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.pager.HorizontalPager
 import androidx.compose.foundation.pager.rememberPagerState
 import androidx.compose.foundation.shape.CircleShape
@@ -21,7 +21,6 @@ import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
@@ -36,29 +35,15 @@ import com.example.projectcalendar.domain.model.CalendarDay
 import com.example.projectcalendar.presentation.ui.common.AddMode
 import com.example.projectcalendar.presentation.ui.common.CalendarPage
 import com.example.projectcalendar.presentation.ui.common.LoadStatus
-import com.example.projectcalendar.presentation.ui.components.AddItemCommand
-import com.example.projectcalendar.presentation.ui.theme.CellFill
-import com.example.projectcalendar.presentation.ui.theme.CellFillEmpty
-import com.example.projectcalendar.presentation.ui.theme.CellFrsBorder
-import com.example.projectcalendar.presentation.ui.theme.CellFrsBorderEmpty
-import com.example.projectcalendar.presentation.ui.theme.CellSecBorder
-import com.example.projectcalendar.presentation.ui.theme.CellSecBorderEmpty
-import com.example.projectcalendar.presentation.ui.theme.EventBorder
-import com.example.projectcalendar.presentation.ui.theme.EventFill
+import com.example.projectcalendar.presentation.ui.calendar.components.AddItemCommand
+import com.example.projectcalendar.presentation.ui.theme.*
 import com.example.projectcalendar.presentation.viewmodel.CalendarViewModel
-import com.example.projectcalendar.presentation.ui.theme.GrayBack
-import com.example.projectcalendar.presentation.ui.theme.SelectBorder
-import com.example.projectcalendar.presentation.ui.theme.WeekBorder
-import com.example.projectcalendar.presentation.ui.theme.WeekFill
 import java.time.LocalDate
 import java.time.YearMonth
 import java.time.format.TextStyle
-import kotlin.math.max
 import java.util.Locale as JavaLocale
 
-// Цвета фона (вынесены для удобства)
 private val ScreenBackground = GrayBack
-
 private val week: List<String> = listOf("Пн", "Вт", "Ср", "Чт", "Пт", "Сб", "Вс")
 
 @RequiresApi(Build.VERSION_CODES.O)
@@ -91,14 +76,11 @@ fun CalendarScreen(
             CalendarTopBar(
                 yearMonth = state.pages.getOrNull(pagerState.currentPage)?.yearMonth,
                 onPrevClick = {
-                    // ✅ Вычисляем целевой месяц СРАЗУ, до обновления стейта
-                    val targetMonth =
-                        state.pages.getOrNull(0)?.yearMonth?.minusMonths(1)
+                    val targetMonth = state.pages.getOrNull(0)?.yearMonth?.minusMonths(1)
                     targetMonth?.let { viewModel.loadMonth(it.year, it.monthValue) }
                 },
                 onNextClick = {
-                    val targetMonth =
-                        state.pages.getOrNull(0)?.yearMonth?.plusMonths(1)
+                    val targetMonth = state.pages.getOrNull(0)?.yearMonth?.plusMonths(1)
                     targetMonth?.let { viewModel.loadMonth(it.year, it.monthValue) }
                 }
             )
@@ -150,23 +132,16 @@ fun CalendarScreen(
                 }
             }
 
-            // 🛡️ Диалоги: onDismiss ТОЛЬКО закрывает, onSave — сохраняет и закрывает
             if (state.showAddItemSheet && state.currentAddMode != null) {
+                val fixedMode = state.currentAddMode!!
+                val fixedDate = state.selectedDate
+
                 AddItemSheet(
-                    mode = state.currentAddMode!!,
-                    date = state.selectedDate,
-                    onDismiss = { viewModel.closeSheets() }, // ← Только закрытие!
-                    onSave = {
-                        // ← Сохранение ТОЛЬКО здесь
-                        viewModel.onAddItem(
-                            AddItemCommand(
-                                mode = state.currentAddMode!!,
-                                date = state.selectedDate,
-                                title = ":TODO",
-                                description = ":TODO",
-                                time = null,
-                            )
-                        )
+                    mode = fixedMode,
+                    date = fixedDate,
+                    onDismiss = { viewModel.closeSheets() },
+                    onSave = { command ->
+                        viewModel.onAddItem(command)
                         viewModel.closeSheets()
                     }
                 )
@@ -183,10 +158,6 @@ fun CalendarScreen(
     }
 }
 
-// ==========================================
-// ВСПОМОГАТЕЛЬНЫЕ КОМПОНЕНТЫ
-// ==========================================
-
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 private fun CalendarTopBar(
@@ -195,19 +166,16 @@ private fun CalendarTopBar(
     onNextClick: () -> Unit,
 ) {
     TopAppBar(
-        // ✅ Явно задаём цвета, чтобы шапка не была белой
         colors = TopAppBarDefaults.topAppBarColors(
             containerColor = ScreenBackground,
             titleContentColor = Color.White,
             navigationIconContentColor = Color.White
         ),
         title = {
-            // ✅ Исправлено: Locale.forLanguageTag вместо устаревшего конструктора
             val monthName = yearMonth?.month?.getDisplayName(
                 TextStyle.FULL,
                 JavaLocale.forLanguageTag("ru-RU")
             ) ?: ""
-            // ✅ Исправлено: replaceFirstChar вместо устаревшего capitalize()
             val capitalized = monthName.replaceFirstChar {
                 if (it.isLowerCase()) it.uppercaseChar() else it
             }
@@ -265,29 +233,27 @@ private fun CalendarMonthGrid(
     selectedDate: LocalDate,
     onDayClick: (LocalDate) -> Unit
 ) {
-    // 🔧 Выносим отступы на уровень выше (в HorizontalPager или Box), а здесь оставляем только spacedBy
     Row(
-        modifier = Modifier.fillMaxWidth(), // ← УБРАЛИ .padding(6.dp) отсюда
-        horizontalArrangement = Arrangement.spacedBy(6.dp) // ← Отступы МЕЖДУ колонками
+        modifier = Modifier.fillMaxWidth(),
+        horizontalArrangement = Arrangement.spacedBy(6.dp)
     ) {
-        // 🔹 Колонка с днями недели
         Column(
             modifier = Modifier.weight(1f),
-            verticalArrangement = Arrangement.spacedBy(6.dp) // ← Отступы МЕЖДУ ячейками
+            verticalArrangement = Arrangement.spacedBy(6.dp)
         ) {
             week.forEach { dayName ->
                 InfoCell(container = dayName)
             }
         }
 
-        // 🔹 Колонки с датами
         grid.forEach { weekColumn ->
             Column(
                 modifier = Modifier.weight(1f),
                 verticalArrangement = Arrangement.spacedBy(6.dp)
             ) {
                 weekColumn.forEach { day ->
-                    key(day?.date, day?.events?.size, day?.tasks?.size, day?.notes?.size) {
+                    key(day?.date, day?.events?.size, day?.tasks?.size, day?.notes?.size,
+                        day?.hasImportantEvent, day?.hasUnimportantEvent) {
                         DayCell(
                             day = day,
                             isSelected = day?.date == selectedDate,
@@ -301,9 +267,7 @@ private fun CalendarMonthGrid(
 }
 
 @Composable
-private fun InfoCell(
-    container: String
-) {
+private fun InfoCell(container: String) {
     val shape = RoundedCornerShape(16.dp)
     val backgroundColor = WeekFill
     Box(
@@ -323,7 +287,6 @@ private fun InfoCell(
             maxLines = 1
         )
     }
-
 }
 
 @Composable
@@ -344,41 +307,38 @@ private fun DayCell(
         else -> CellSecBorder
     }
     val borderWidth = 3.dp
-
     val shape = RoundedCornerShape(80.dp)
 
     val gradientBorder = BorderStroke(
-        width = 4.dp, // Толщина градиентной зоны
+        width = 4.dp,
         brush = Brush.radialGradient(
             colors = listOf(
-                Color.Black.copy(alpha = 0.6f), // Тёмный полупрозрачный на краю
-                Color.Transparent               // Прозрачный к центру
+                Color.Black.copy(alpha = 0.6f),
+                Color.Transparent
             ),
-            center = androidx.compose.ui.geometry.Offset(0.5f, 0.5f), // Центр ячейки
-            radius = 0.6f // Радиус градиента (0.5 = половина ячейки, 1.0 = вся)
+            center = androidx.compose.ui.geometry.Offset(0.5f, 0.5f),
+            radius = 0.6f
         )
     )
+
     Box(
         modifier = Modifier
             .aspectRatio(1f)
             .clip(shape)
-            .background(if (day!= null) backgroundColor else CellFillEmpty)
+            .background(if (day != null) backgroundColor else CellFillEmpty)
             .then(if (isSelected) Modifier.border(gradientBorder, shape) else Modifier)
-            .then(
-                Modifier.border(borderWidth,if (day != null) borderColor else CellFrsBorderEmpty, shape)
-            ).then(
-                Modifier.padding(3.dp))
-            .then(
-                Modifier.border(borderWidth,if (day != null) secBorderColor else CellSecBorderEmpty,shape))
-
+            .border(borderWidth, if (day != null) borderColor else CellFrsBorderEmpty, shape)
+            .padding(3.dp)
+            .border(borderWidth, if (day != null) secBorderColor else CellSecBorderEmpty, shape)
             .clickable(enabled = day != null, onClick = onClick)
             .padding(4.dp),
         contentAlignment = Alignment.Center,
-
     ) {
         if (day != null) {
-            Column(horizontalAlignment = Alignment.CenterHorizontally,
-                modifier = Modifier.padding(4.dp)) {
+            Column(
+                horizontalAlignment = Alignment.CenterHorizontally,
+                modifier = Modifier.padding(4.dp)
+            ) {
                 Text(
                     text = day.date.dayOfMonth.toString(),
                     fontWeight = if (day.isToday) FontWeight.SemiBold else FontWeight.Normal,
@@ -416,24 +376,96 @@ private fun AddItemSheet(
     mode: AddMode,
     date: LocalDate,
     onDismiss: () -> Unit,
-    onSave: () -> Unit
+    onSave: (AddItemCommand) -> Unit
 ) {
-    // ✅ onDismissRequest вызывает ТОЛЬКО onDismiss (закрытие), не onSave!
+    Log.d("AddItemSheet", "AddItemSheet is opened now")
+
+    var title by remember { mutableStateOf("") }
+    var description by remember { mutableStateOf("") }
+    var time by remember { mutableStateOf(java.time.LocalTime.now()) }
+    var isImportant by remember { mutableStateOf(false) }
+    var isSaving by remember { mutableStateOf(false) }
+
     ModalBottomSheet(onDismissRequest = onDismiss) {
         Column(
             modifier = Modifier
                 .padding(16.dp)
                 .fillMaxWidth()
         ) {
-            Text("Добавить: ${mode::class.simpleName}", style = MaterialTheme.typography.titleLarge)
+            Text(
+                text = when (mode) {
+                    AddMode.Event -> "Новое событие"
+                    AddMode.Task -> "Новая задача"
+                    AddMode.Note -> "Новая заметка"
+                },
+                style = MaterialTheme.typography.titleLarge
+            )
             Text("Дата: $date", modifier = Modifier.padding(vertical = 8.dp))
-            // TODO: Реальные поля ввода
-            Button(
-                onClick = onSave,
-                modifier = Modifier.align(Alignment.End),
-                enabled = true // Можно добавить валидацию
+
+            Spacer(Modifier.height(12.dp))
+
+            OutlinedTextField(
+                value = title,
+                onValueChange = { title = it },
+                label = { Text("Название") },
+                modifier = Modifier.fillMaxWidth(),
+                singleLine = true
+            )
+
+            Spacer(Modifier.height(12.dp))
+
+            if (mode == AddMode.Event) {
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Checkbox(
+                        checked = isImportant,
+                        onCheckedChange = { isImportant = it }
+                    )
+                    Text("Важное событие")
+                }
+                Spacer(Modifier.height(12.dp))
+            }
+
+            OutlinedTextField(
+                value = description,
+                onValueChange = { description = it },
+                label = { Text("Описание") },
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .height(120.dp),
+                maxLines = 6
+            )
+
+            Spacer(Modifier.height(16.dp))
+
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.End
             ) {
-                Text("Сохранить")
+                TextButton(onClick = onDismiss, enabled = !isSaving) {
+                    Text("Отмена")
+                }
+                Spacer(Modifier.width(8.dp))
+                Button(
+                    onClick = {
+                        isSaving = true
+                        onSave(
+                            AddItemCommand(
+                                mode = mode,
+                                date = date,
+                                title = title.trim(),
+                                description = description.trim(),
+                                time = if (mode == AddMode.Event) time else null,
+                                isImportant = if (mode == AddMode.Event) isImportant else false
+                            )
+                        )
+                    },
+                    enabled = title.isNotBlank() && !isSaving
+                ) {
+                    Text("Сохранить")
+                }
             }
         }
     }
@@ -461,10 +493,6 @@ private fun DayDetailsSheet(
         }
     }
 }
-
-// ==========================================
-// УТИЛИТЫ
-// ==========================================
 
 private fun findDayData(pages: List<CalendarPage>, date: LocalDate): CalendarDay? {
     return pages.flatMap { it.grid.flatten() }.firstOrNull { it?.date == date }

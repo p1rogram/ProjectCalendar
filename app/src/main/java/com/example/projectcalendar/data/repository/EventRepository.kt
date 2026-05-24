@@ -56,6 +56,11 @@ class EventRepository(
             start.toStartOfDayMillis(),
             end.toNextDayStartMillis()
         ).map { entities -> entities.map { it.toDomain() } }
+    suspend fun getEventsForDateRangeOnce(start: LocalDate, end: LocalDate): List<Event> =
+        eventDao.getEventsForDateRangeOnce(
+            start.toStartOfDayMillis(),
+            end.toNextDayStartMillis()
+        ).map { it.toDomain() }
 
     /** Разовое получение события по ID */
     suspend fun getEventById(id: Long): Event? =

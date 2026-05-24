@@ -34,6 +34,8 @@ interface NoteDao {
     @Query("SELECT COUNT(*) FROM notes")
     suspend fun getNotesCount(): Int
 
-    @Query("SELECT * FROM notes WHERE date BETWEEN :start AND :end ORDER BY created_at DESC")
+    @Query("SELECT * FROM notes WHERE date >= :start AND date < :end ORDER BY created_at DESC")
     fun getNotesByDateRange(start: Long, end: Long): Flow<List<NoteEntity>>
+    @Query("SELECT * FROM notes WHERE date >= :start AND date < :end ORDER BY created_at DESC")
+    suspend fun getNotesByDateRangeOnce(start: Long, end: Long): List<NoteEntity>
 }

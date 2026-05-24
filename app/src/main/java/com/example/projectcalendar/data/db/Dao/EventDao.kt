@@ -81,9 +81,10 @@ interface EventDao {
      *
      * ORDER BY startDateTime ASC: Сортировка от старых к новым.
      */
-    @Query("SELECT * FROM events WHERE startDateTime BETWEEN :startDate AND :endDate ORDER BY startDateTime ASC")
+    @Query("SELECT * FROM events WHERE startDateTime >= :startDate AND startDateTime < :endDate ORDER BY startDateTime ASC")
     fun getEventsForDateRange(startDate: Long, endDate: Long): Flow<List<EventEntity>>
-
+    @Query("SELECT * FROM events WHERE startDateTime >= :startDate AND startDateTime < :endDate ORDER BY startDateTime ASC")
+    suspend fun getEventsForDateRangeOnce(startDate: Long, endDate: Long): List<EventEntity>
     /**
      * ПОЛУЧЕНИЕ ВАЖНЫХ СОБЫТИЙ
      * Роль: Найти все события, у которых стоит галочка "Важное".
