@@ -22,6 +22,7 @@ data class CalendarDay(
     val taskProgress: Float = if (tasksTotal == 0) 0f else tasksCompleted.toFloat() / tasksTotal
     val hasEvents: Boolean get() = events.isNotEmpty()
     val hasTasks: Boolean get() = tasks.isNotEmpty()
+    val hasTasksOrNotes: Boolean get() = tasks.isNotEmpty() || notes.isNotEmpty()
     val hasNotes: Boolean get() = notes.isNotEmpty()
     val isEmpty: Boolean get() = !hasAnyContent
     val isToday: Boolean = date == LocalDate.now()

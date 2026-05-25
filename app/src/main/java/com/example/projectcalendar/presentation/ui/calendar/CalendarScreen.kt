@@ -3,12 +3,12 @@ package com.example.projectcalendar.presentation.ui.screen
 import android.app.Activity
 import android.graphics.drawable.ColorDrawable
 import android.os.Build
-import android.util.Log
 import androidx.annotation.RequiresApi
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.pager.HorizontalPager
 import androidx.compose.foundation.pager.rememberPagerState
@@ -23,12 +23,14 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Brush
+import androidx.compose.ui.graphics.Brush.Companion.radialGradient
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.toArgb
 import androidx.compose.ui.platform.LocalView
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.em
+import androidx.compose.ui.unit.sp
 import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.example.projectcalendar.domain.model.CalendarDay
@@ -158,20 +160,81 @@ fun CalendarScreen(
     }
 }
 
-@OptIn(ExperimentalMaterial3Api::class)
+//@OptIn(ExperimentalMaterial3Api::class)
+//@Composable
+//private fun CalendarTopBar(
+//    yearMonth: YearMonth?,
+//    onPrevClick: () -> Unit,
+//    onNextClick: () -> Unit,
+//) {
+//    TopAppBar(
+//        colors = TopAppBarDefaults.topAppBarColors(
+//            containerColor = ScreenBackground,
+//            titleContentColor = Color.White,
+//            navigationIconContentColor = Color.White
+//        ),
+//        title = {
+//            val monthName = yearMonth?.month?.getDisplayName(
+//                TextStyle.FULL,
+//                JavaLocale.forLanguageTag("ru-RU")
+//            ) ?: ""
+//            val capitalized = monthName.replaceFirstChar {
+//                if (it.isLowerCase()) it.uppercaseChar() else it
+//            }
+//            Text(
+//                text = "$capitalized ${yearMonth?.year ?: ""}" + "г.",
+//                fontWeight = FontWeight.Bold,
+//                maxLines = 1
+//            )
+//        },
+//        navigationIcon = { IconButton(onClick = onPrevClick) { Text("←") } },
+//        actions = { IconButton(onClick = onNextClick) { Text("→") } }
+//    )
+//}
+
+private val PanelShape = RoundedCornerShape(20.dp)
+private val PanelBorder = Color(0xFF9A9A9A) // Серая обводка как на макете
+private val PanelBg = Color(0xFF1A1A1A)     // Тёмный фон контейнеров
+////////////////////////////////////
 @Composable
 private fun CalendarTopBar(
     yearMonth: YearMonth?,
     onPrevClick: () -> Unit,
     onNextClick: () -> Unit,
 ) {
-    TopAppBar(
-        colors = TopAppBarDefaults.topAppBarColors(
-            containerColor = ScreenBackground,
-            titleContentColor = Color.White,
-            navigationIconContentColor = Color.White
-        ),
-        title = {
+    Row(
+        modifier = Modifier
+            .statusBarsPadding()
+            .fillMaxWidth()
+            .padding(horizontal = 12.dp)
+            .padding(top = 10.dp)
+            .border(2.dp, PanelBorder, PanelShape)
+            .clip(PanelShape)
+            .background(PanelBg),
+        verticalAlignment = Alignment.CenterVertically
+            ,
+        horizontalArrangement = Arrangement.SpaceBetween
+    ) {
+        // ← Кнопка
+        Box(
+            modifier = Modifier
+                .weight(1f)
+                .clickable(                interactionSource = remember { MutableInteractionSource() },
+                    indication = null, // Убираем ripple
+                    onClick = onPrevClick)
+                .padding(14.dp),
+            contentAlignment = Alignment.Center
+        ) {
+            Text("←", color = Color.White, fontSize = 20.sp)
+        }
+
+        // Месяц и год по центру
+        Column(
+            modifier = Modifier
+                .weight(2f)
+                .padding(vertical = 12.dp),
+            horizontalAlignment = Alignment.CenterHorizontally
+        ) {
             val monthName = yearMonth?.month?.getDisplayName(
                 TextStyle.FULL,
                 JavaLocale.forLanguageTag("ru-RU")
@@ -180,16 +243,70 @@ private fun CalendarTopBar(
                 if (it.isLowerCase()) it.uppercaseChar() else it
             }
             Text(
-                text = "$capitalized ${yearMonth?.year ?: ""}" + "г.",
-                fontWeight = FontWeight.Bold,
-                maxLines = 1
+                text = capitalized,
+                color = Color.White,
+                fontSize = 22.sp,
+                fontWeight = FontWeight.Medium
             )
-        },
-        navigationIcon = { IconButton(onClick = onPrevClick) { Text("←") } },
-        actions = { IconButton(onClick = onNextClick) { Text("→") } }
-    )
-}
+            Text(
+                text = "${yearMonth?.year ?: ""}г.",
+                color = Color.White,
+                fontSize = 16.sp
+            )
+        }
 
+        // → Кнопка
+        Box(
+            modifier = Modifier
+                .weight(1f)
+                .clickable(                interactionSource = remember { MutableInteractionSource() },
+                    indication = null, // Убираем ripple
+                    onClick = onNextClick)
+                .padding(14.dp),
+            contentAlignment = Alignment.Center
+        ) {
+            Text("→", color = Color.White, fontSize = 20.sp)
+        }
+    }
+}
+////////////////////////////////////////////////////
+//@Composable
+//private fun BottomActionButtons(
+//    onAddClick: (AddMode) -> Unit,
+//    onDetailsClick: () -> Unit
+//) {
+//    Row(
+//        modifier = Modifier
+//            .fillMaxWidth()
+//            .padding(16.dp),
+//        horizontalArrangement = Arrangement.SpaceBetween
+//    ) {
+//        Box {
+//            var showMenu by remember { mutableStateOf(false) }
+//            FilledIconButton(onClick = { showMenu = true }) {
+//                Icon(Icons.Default.Add, contentDescription = "Добавить")
+//            }
+//            DropdownMenu(expanded = showMenu, onDismissRequest = { showMenu = false }) {
+//                DropdownMenuItem(
+//                    text = { Text("Событие") },
+//                    onClick = { onAddClick(AddMode.Event); showMenu = false }
+//                )
+//                DropdownMenuItem(
+//                    text = { Text("Задача") },
+//                    onClick = { onAddClick(AddMode.Task); showMenu = false }
+//                )
+//                DropdownMenuItem(
+//                    text = { Text("Заметка") },
+//                    onClick = { onAddClick(AddMode.Note); showMenu = false }
+//                )
+//            }
+//        }
+//        FilledTonalIconButton(onClick = onDetailsClick) {
+//            Icon(Icons.Default.Info, contentDescription = "Сводка")
+//        }
+//    }
+//}
+/////////////////////////////////////
 @Composable
 private fun BottomActionButtons(
     onAddClick: (AddMode) -> Unit,
@@ -198,15 +315,41 @@ private fun BottomActionButtons(
     Row(
         modifier = Modifier
             .fillMaxWidth()
-            .padding(16.dp),
-        horizontalArrangement = Arrangement.SpaceBetween
+            .padding(horizontal = 12.dp, vertical = 8.dp)
+            .padding(bottom = 18.dp),
+        horizontalArrangement = Arrangement.spacedBy(8.dp)
     ) {
-        Box {
+        // 🔘 Левая кнопка: меню добавления
+        Box(
+            modifier = Modifier
+                .weight(1f)
+                .height(48.dp)
+                .border(2.dp, PanelBorder, PanelShape)
+                .clip(PanelShape)
+                .background(PanelBg)
+                .clickable {
+                    // Открываем меню добавления
+                    // (логика меню вынесена в DropdownMenu внутри Box ниже)
+                }
+        ) {
+            // Вынесенное меню для кнопки "+"
             var showMenu by remember { mutableStateOf(false) }
-            FilledIconButton(onClick = { showMenu = true }) {
-                Icon(Icons.Default.Add, contentDescription = "Добавить")
+            Box(
+                modifier = Modifier
+                    .fillMaxSize()
+                    .clickable { showMenu = true },
+                contentAlignment = Alignment.Center
+            ) {
+                Icon(
+                    Icons.Default.Add,
+                    contentDescription = "Добавить",
+                    tint = Color.White
+                )
             }
-            DropdownMenu(expanded = showMenu, onDismissRequest = { showMenu = false }) {
+            DropdownMenu(
+                expanded = showMenu,
+                onDismissRequest = { showMenu = false }
+            ) {
                 DropdownMenuItem(
                     text = { Text("Событие") },
                     onClick = { onAddClick(AddMode.Event); showMenu = false }
@@ -221,12 +364,41 @@ private fun BottomActionButtons(
                 )
             }
         }
-        FilledTonalIconButton(onClick = onDetailsClick) {
-            Icon(Icons.Default.Info, contentDescription = "Сводка")
+
+        // 🔘 Центральная кнопка: сводка (шире)
+        Box(
+            modifier = Modifier
+                .weight(2f)
+                .height(48.dp)
+                .border(2.dp, PanelBorder, PanelShape)
+                .clip(PanelShape)
+                .background(PanelBg)
+                .clickable(onClick = onDetailsClick),
+            contentAlignment = Alignment.Center
+        ) {
+            Icon(
+                Icons.Default.Info,
+                contentDescription = "Сводка",
+                tint = Color.White
+            )
+        }
+
+        // 🔘 Правая кнопка: (зарезервировано под будущую фичу)
+        Box(
+            modifier = Modifier
+                .weight(1f)
+                .height(48.dp)
+                .border(2.dp, PanelBorder, PanelShape)
+                .clip(PanelShape)
+                .background(PanelBg)
+                .clickable { /* TODO: добавить действие */ },
+            contentAlignment = Alignment.Center
+        ) {
+            // Пока пусто или можно добавить иконку
         }
     }
 }
-
+/////////////////////////////////////////////////////////////
 @Composable
 private fun CalendarMonthGrid(
     grid: List<List<CalendarDay?>>,
@@ -252,8 +424,8 @@ private fun CalendarMonthGrid(
                 verticalArrangement = Arrangement.spacedBy(6.dp)
             ) {
                 weekColumn.forEach { day ->
-                    key(day?.date, day?.events?.size, day?.tasks?.size, day?.notes?.size,
-                        day?.hasImportantEvent, day?.hasUnimportantEvent) {
+                    key(day?.date, day?.hasImportantEvent, day?.hasUnimportantEvent,
+                        day?.hasTasksOrNotes) {
                         DayCell(
                             day = day,
                             isSelected = day?.date == selectedDate,
@@ -265,7 +437,9 @@ private fun CalendarMonthGrid(
         }
     }
 }
-
+private val brush = radialGradient(
+    colors = listOf(Color.Transparent, Color.Black.copy(alpha = 0.2f),)
+)
 @Composable
 private fun InfoCell(container: String) {
     val shape = RoundedCornerShape(16.dp)
@@ -275,6 +449,7 @@ private fun InfoCell(container: String) {
             .aspectRatio(1f)
             .clip(shape)
             .background(backgroundColor)
+            .background(brush)
             .border(3.dp, WeekBorder, shape)
             .padding(4.dp),
         contentAlignment = Alignment.Center
@@ -311,7 +486,7 @@ private fun DayCell(
 
     val gradientBorder = BorderStroke(
         width = 4.dp,
-        brush = Brush.radialGradient(
+        brush = radialGradient(
             colors = listOf(
                 Color.Black.copy(alpha = 0.6f),
                 Color.Transparent
@@ -321,24 +496,31 @@ private fun DayCell(
         )
     )
 
-    Box(
-        modifier = Modifier
-            .aspectRatio(1f)
-            .clip(shape)
-            .background(if (day != null) backgroundColor else CellFillEmpty)
-            .then(if (isSelected) Modifier.border(gradientBorder, shape) else Modifier)
-            .border(borderWidth, if (day != null) borderColor else CellFrsBorderEmpty, shape)
-            .padding(3.dp)
-            .border(borderWidth, if (day != null) secBorderColor else CellSecBorderEmpty, shape)
-            .clickable(enabled = day != null, onClick = onClick)
-            .padding(4.dp),
-        contentAlignment = Alignment.Center,
-    ) {
-        if (day != null) {
-            Column(
-                horizontalAlignment = Alignment.CenterHorizontally,
-                modifier = Modifier.padding(4.dp)
-            ) {
+    // ✅ Вычисляем цвет индикатора по новой логике
+    val indicatorColor = when {
+        day == null -> null
+        day.hasUnimportantEvent -> Color.Red  // Невыжное событие = красный
+        day.hasTasksOrNotes -> Color.Yellow   // Задачи или заметки = жёлтый
+        else -> null  // Только важные события или пусто = нет индикатора
+    }
+
+    Box {
+        // Основная ячейка
+        Box(
+            modifier = Modifier
+                .aspectRatio(1f)
+                .clip(shape)
+                .background(if (day != null) backgroundColor else CellFillEmpty)
+                .background(brush = brush)
+                .then(if (isSelected) Modifier.border(gradientBorder, shape) else Modifier)
+                .border(borderWidth, if (day != null) borderColor else CellFrsBorderEmpty, shape)
+                .padding(3.dp)
+                .border(borderWidth, if (day != null) secBorderColor else CellSecBorderEmpty, shape)
+                .clickable(enabled = day != null, onClick = onClick)
+                .padding(4.dp),
+            contentAlignment = Alignment.Center,
+        ) {
+            if (day != null) {
                 Text(
                     text = day.date.dayOfMonth.toString(),
                     fontWeight = if (day.isToday) FontWeight.SemiBold else FontWeight.Normal,
@@ -346,26 +528,20 @@ private fun DayCell(
                     fontSize = 11.5.em,
                     maxLines = 1
                 )
-                Row(horizontalArrangement = Arrangement.spacedBy(2.dp)) {
-                    if (day.hasEvents) Box(
-                        modifier = Modifier
-                            .size(4.dp)
-                            .background(Color.Red, CircleShape)
-                    )
-                    if (day.hasTasks) Box(
-                        modifier = Modifier
-                            .size(4.dp)
-                            .background(Color.Green, CircleShape)
-                    )
-                    if (day.hasNotes) Box(
-                        modifier = Modifier
-                            .size(4.dp)
-                            .background(Color.Blue, CircleShape)
-                    )
-                }
             }
-        } else {
-            Box(modifier = Modifier.fillMaxSize())
+        }
+
+        // ✅ Индикатор в левом верхнем углу, поверх всех обводок
+        if (indicatorColor != null) {
+            Box(
+                modifier = Modifier
+                    .size(25.dp)
+                    .align(Alignment.TopEnd)
+                    .padding(end = 2.dp, top = 2.dp)
+                    .background(indicatorColor, CircleShape)
+                    .background(brush = brush, CircleShape)
+                    .border(2.4.dp, Color.White, CircleShape)
+            )
         }
     }
 }
@@ -378,8 +554,6 @@ private fun AddItemSheet(
     onDismiss: () -> Unit,
     onSave: (AddItemCommand) -> Unit
 ) {
-    Log.d("AddItemSheet", "AddItemSheet is opened now")
-
     var title by remember { mutableStateOf("") }
     var description by remember { mutableStateOf("") }
     var time by remember { mutableStateOf(java.time.LocalTime.now()) }
@@ -389,8 +563,8 @@ private fun AddItemSheet(
     ModalBottomSheet(onDismissRequest = onDismiss) {
         Column(
             modifier = Modifier
-                .padding(16.dp)
                 .fillMaxWidth()
+                .padding(16.dp)
         ) {
             Text(
                 text = when (mode) {
@@ -398,11 +572,15 @@ private fun AddItemSheet(
                     AddMode.Task -> "Новая задача"
                     AddMode.Note -> "Новая заметка"
                 },
-                style = MaterialTheme.typography.titleLarge
+                style = MaterialTheme.typography.headlineSmall
             )
-            Text("Дата: $date", modifier = Modifier.padding(vertical = 8.dp))
-
-            Spacer(Modifier.height(12.dp))
+            Spacer(Modifier.height(8.dp))
+            Text(
+                "Дата: $date",
+                style = MaterialTheme.typography.bodyMedium,
+                color = MaterialTheme.colorScheme.onSurfaceVariant
+            )
+            Spacer(Modifier.height(16.dp))
 
             OutlinedTextField(
                 value = title,
@@ -411,7 +589,6 @@ private fun AddItemSheet(
                 modifier = Modifier.fillMaxWidth(),
                 singleLine = true
             )
-
             Spacer(Modifier.height(12.dp))
 
             if (mode == AddMode.Event) {
@@ -431,14 +608,14 @@ private fun AddItemSheet(
             OutlinedTextField(
                 value = description,
                 onValueChange = { description = it },
-                label = { Text("Описание") },
+                label = { Text(if (mode == AddMode.Task) "Описание задачи" else "Описание") },
                 modifier = Modifier
                     .fillMaxWidth()
-                    .height(120.dp),
-                maxLines = 6
+                    .height(if (mode == AddMode.Event) 100.dp else 150.dp),
+                maxLines = if (mode == AddMode.Event) 4 else 6
             )
 
-            Spacer(Modifier.height(16.dp))
+            Spacer(Modifier.height(24.dp))
 
             Row(
                 modifier = Modifier.fillMaxWidth(),
