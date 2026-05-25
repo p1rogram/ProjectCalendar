@@ -3,14 +3,17 @@ package com.example.projectcalendar.presentation.ui.common
 import androidx.compose.runtime.Immutable
 import com.example.projectcalendar.domain.model.CalendarDay
 import kotlinx.collections.immutable.ImmutableList
+import kotlinx.collections.immutable.ImmutableMap
 import kotlinx.collections.immutable.persistentListOf
+import kotlinx.collections.immutable.persistentMapOf
 import java.time.LocalDate
 import java.time.YearMonth
 
 @Immutable
 data class CalendarUiState(
     val status: LoadStatus = LoadStatus.Loading,
-    val pages: ImmutableList<CalendarPage> = persistentListOf(),  // ✅
+    val pages: ImmutableList<CalendarPage> = persistentListOf(),
+    val monthsCache: ImmutableMap<YearMonth, ImmutableList<CalendarPage>> = persistentMapOf(), // ✅ Кэш месяцев
     val initialPageIndex: Int = 0,
     val selectedDate: LocalDate = LocalDate.now(),
     val showAddItemSheet: Boolean = false,
@@ -33,6 +36,6 @@ sealed class AddMode {
 @Immutable
 data class CalendarPage(
     val yearMonth: YearMonth,
-    val grid: ImmutableList<ImmutableList<CalendarDay?>>,  // ✅
+    val grid: ImmutableList<ImmutableList<CalendarDay?>>,
     val isSecondHalf: Boolean
 )

@@ -17,14 +17,17 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.Info
+import androidx.compose.material.icons.filled.Settings
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Brush.Companion.radialGradient
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.SweepGradientShader
 import androidx.compose.ui.graphics.toArgb
 import androidx.compose.ui.platform.LocalView
 import androidx.compose.ui.text.font.FontWeight
@@ -41,12 +44,16 @@ import com.example.projectcalendar.presentation.ui.calendar.components.AddItemCo
 import com.example.projectcalendar.presentation.ui.theme.*
 import com.example.projectcalendar.presentation.viewmodel.CalendarViewModel
 import java.time.LocalDate
+import java.time.LocalTime
 import java.time.YearMonth
 import java.time.format.TextStyle
 import java.util.Locale as JavaLocale
 
 private val ScreenBackground = GrayBack
 private val week: List<String> = listOf("Пн", "Вт", "Ср", "Чт", "Пт", "Сб", "Вс")
+private val brush = radialGradient(
+    colors = listOf(Color.Transparent, Color.Black.copy(alpha = 0.2f),)
+)
 
 @RequiresApi(Build.VERSION_CODES.O)
 @OptIn(ExperimentalMaterial3Api::class)
@@ -114,7 +121,8 @@ fun CalendarScreen(
                         state = pagerState,
                         modifier = Modifier
                             .fillMaxSize()
-                            .background(ScreenBackground)
+                            .background(ScreenBackground),
+                        beyondViewportPageCount = 1  // ✅ Исправлено: правильное имя параметра
                     ) { page ->
                         Box(
                             modifier = Modifier
@@ -210,7 +218,8 @@ private fun CalendarTopBar(
             .padding(top = 10.dp)
             .border(2.dp, PanelBorder, PanelShape)
             .clip(PanelShape)
-            .background(PanelBg),
+            .background(PanelBg)
+            .background(brush = brush),
         verticalAlignment = Alignment.CenterVertically
             ,
         horizontalArrangement = Arrangement.SpaceBetween
@@ -327,6 +336,7 @@ private fun BottomActionButtons(
                 .border(2.dp, PanelBorder, PanelShape)
                 .clip(PanelShape)
                 .background(PanelBg)
+                .background(brush = brush)
                 .clickable {
                     // Открываем меню добавления
                     // (логика меню вынесена в DropdownMenu внутри Box ниже)
@@ -348,18 +358,19 @@ private fun BottomActionButtons(
             }
             DropdownMenu(
                 expanded = showMenu,
-                onDismissRequest = { showMenu = false }
+                onDismissRequest = { showMenu = false },
+                containerColor = PanelBg  // Тёмный фон меню
             ) {
                 DropdownMenuItem(
-                    text = { Text("Событие") },
+                    text = { Text("Событие", color = Color.White) },  // ✅ Цвет текста напрямую
                     onClick = { onAddClick(AddMode.Event); showMenu = false }
                 )
                 DropdownMenuItem(
-                    text = { Text("Задача") },
+                    text = { Text("Задача", color = Color.White) },  // ✅ Цвет текста напрямую
                     onClick = { onAddClick(AddMode.Task); showMenu = false }
                 )
                 DropdownMenuItem(
-                    text = { Text("Заметка") },
+                    text = { Text("Заметка", color = Color.White) },  // ✅ Цвет текста напрямую
                     onClick = { onAddClick(AddMode.Note); showMenu = false }
                 )
             }
@@ -373,7 +384,8 @@ private fun BottomActionButtons(
                 .border(2.dp, PanelBorder, PanelShape)
                 .clip(PanelShape)
                 .background(PanelBg)
-                .clickable(onClick = onDetailsClick),
+                .clickable(onClick = onDetailsClick)
+                .background(brush = brush),
             contentAlignment = Alignment.Center
         ) {
             Icon(
@@ -391,9 +403,15 @@ private fun BottomActionButtons(
                 .border(2.dp, PanelBorder, PanelShape)
                 .clip(PanelShape)
                 .background(PanelBg)
-                .clickable { /* TODO: добавить действие */ },
+                .clickable { /* TODO: добавить действие */ }
+                .background(brush = brush),
             contentAlignment = Alignment.Center
         ) {
+            Icon(
+                Icons.Default.Settings,
+                contentDescription = "Настройки",
+                tint = Color.White
+            )
             // Пока пусто или можно добавить иконку
         }
     }
@@ -437,9 +455,7 @@ private fun CalendarMonthGrid(
         }
     }
 }
-private val brush = radialGradient(
-    colors = listOf(Color.Transparent, Color.Black.copy(alpha = 0.2f),)
-)
+
 @Composable
 private fun InfoCell(container: String) {
     val shape = RoundedCornerShape(16.dp)
@@ -491,7 +507,7 @@ private fun DayCell(
                 Color.Black.copy(alpha = 0.6f),
                 Color.Transparent
             ),
-            center = androidx.compose.ui.geometry.Offset(0.5f, 0.5f),
+            center = Offset(0.5f, 0.5f),
             radius = 0.6f
         )
     )
@@ -556,11 +572,20 @@ private fun AddItemSheet(
 ) {
     var title by remember { mutableStateOf("") }
     var description by remember { mutableStateOf("") }
-    var time by remember { mutableStateOf(java.time.LocalTime.now()) }
+    var time by remember { mutableStateOf(LocalTime.now()) }
     var isImportant by remember { mutableStateOf(false) }
     var isSaving by remember { mutableStateOf(false) }
 
-    ModalBottomSheet(onDismissRequest = onDismiss) {
+    ModalBottomSheet(
+        onDismissRequest = onDismiss,
+        containerColor = PanelBg,                    // ✅ Тёмный фон шита
+        contentColor = Color.White,                  // ✅ Белый цвет по умолчанию
+        dragHandle = {
+            BottomSheetDefaults.DragHandle(
+                color = PanelBorder                  // ✅ Серая ручка, чтобы было видно
+            )
+        }
+    ) {
         Column(
             modifier = Modifier
                 .fillMaxWidth()
@@ -572,22 +597,35 @@ private fun AddItemSheet(
                     AddMode.Task -> "Новая задача"
                     AddMode.Note -> "Новая заметка"
                 },
-                style = MaterialTheme.typography.headlineSmall
+                style = MaterialTheme.typography.headlineSmall,
+                color = Color.White                  // ✅
             )
             Spacer(Modifier.height(8.dp))
             Text(
                 "Дата: $date",
                 style = MaterialTheme.typography.bodyMedium,
-                color = MaterialTheme.colorScheme.onSurfaceVariant
+                color = Color.White.copy(alpha = 0.7f)  // ✅ Приглушённый белый
             )
             Spacer(Modifier.height(16.dp))
+
+            // ✅ Кастомные цвета для текстового поля
+            val textFieldColors = OutlinedTextFieldDefaults.colors(
+                focusedTextColor = Color.White,
+                unfocusedTextColor = Color.White,
+                focusedLabelColor = Color.White,
+                unfocusedLabelColor = Color.White.copy(alpha = 0.7f),
+                focusedBorderColor = Color.White,
+                unfocusedBorderColor = Color.White.copy(alpha = 0.5f),
+                cursorColor = Color.White
+            )
 
             OutlinedTextField(
                 value = title,
                 onValueChange = { title = it },
                 label = { Text("Название") },
                 modifier = Modifier.fillMaxWidth(),
-                singleLine = true
+                singleLine = true,
+                colors = textFieldColors              // ✅
             )
             Spacer(Modifier.height(12.dp))
 
@@ -598,11 +636,16 @@ private fun AddItemSheet(
                 ) {
                     Checkbox(
                         checked = isImportant,
-                        onCheckedChange = { isImportant = it }
+                        onCheckedChange = { isImportant = it },
+                        colors = CheckboxDefaults.colors(
+                            checkedColor = Color.White,
+                            uncheckedColor = Color.White.copy(alpha = 0.7f),
+                            checkmarkColor = PanelBg
+                        )
                     )
-                    Text("Важное событие")
+                    Text("Важное событие", color = Color.White)
+                    Spacer(Modifier.height(12.dp))
                 }
-                Spacer(Modifier.height(12.dp))
             }
 
             OutlinedTextField(
@@ -612,7 +655,8 @@ private fun AddItemSheet(
                 modifier = Modifier
                     .fillMaxWidth()
                     .height(if (mode == AddMode.Event) 100.dp else 150.dp),
-                maxLines = if (mode == AddMode.Event) 4 else 6
+                maxLines = if (mode == AddMode.Event) 4 else 6,
+                colors = textFieldColors              // ✅
             )
 
             Spacer(Modifier.height(24.dp))
@@ -621,8 +665,11 @@ private fun AddItemSheet(
                 modifier = Modifier.fillMaxWidth(),
                 horizontalArrangement = Arrangement.End
             ) {
-                TextButton(onClick = onDismiss, enabled = !isSaving) {
-                    Text("Отмена")
+                TextButton(
+                    onClick = onDismiss,
+                    enabled = !isSaving
+                ) {
+                    Text("Отмена", color = Color.White.copy(alpha = 0.7f))
                 }
                 Spacer(Modifier.width(8.dp))
                 Button(
@@ -639,7 +686,11 @@ private fun AddItemSheet(
                             )
                         )
                     },
-                    enabled = title.isNotBlank() && !isSaving
+                    enabled = title.isNotBlank() && !isSaving,
+                    colors = ButtonDefaults.buttonColors(
+                        containerColor = Color.White,
+                        contentColor = PanelBg            // ✅ Инверсия: белая кнопка, тёмный текст
+                    )
                 ) {
                     Text("Сохранить")
                 }
@@ -655,18 +706,45 @@ private fun DayDetailsSheet(
     dayData: CalendarDay?,
     onDismiss: () -> Unit
 ) {
-    ModalBottomSheet(onDismissRequest = onDismiss) {
+    ModalBottomSheet(
+        onDismissRequest = onDismiss,
+        containerColor = PanelBg,                    // ✅ Тёмный фон
+        contentColor = Color.White,
+        dragHandle = {
+            BottomSheetDefaults.DragHandle(color = PanelBorder)
+        }
+    ) {
         Column(
             modifier = Modifier
                 .padding(16.dp)
                 .fillMaxWidth()
         ) {
-            Text("Сводка за $date", style = MaterialTheme.typography.titleLarge)
+            Text(
+                "Сводка за $date",
+                style = MaterialTheme.typography.titleLarge,
+                color = Color.White                  // ✅
+            )
+            Spacer(Modifier.height(12.dp))
             dayData?.let { data ->
-                Text("Событий: ${data.events.size}")
-                Text("Задач: ${data.tasks.size} (выполнено: ${data.tasksCompleted})")
-                Text("Заметок: ${data.notes.size}")
-            } ?: Text("Нет данных")
+                Text(
+                    "Событий: ${data.events.size}",
+                    color = Color.White,
+                    style = MaterialTheme.typography.bodyLarge
+                )
+                Text(
+                    "Задач: ${data.tasks.size} (выполнено: ${data.tasksCompleted})",
+                    color = Color.White,
+                    style = MaterialTheme.typography.bodyLarge
+                )
+                Text(
+                    "Заметок: ${data.notes.size}",
+                    color = Color.White,
+                    style = MaterialTheme.typography.bodyLarge
+                )
+            } ?: Text(
+                "Нет данных",
+                color = Color.White.copy(alpha = 0.5f)
+            )
         }
     }
 }

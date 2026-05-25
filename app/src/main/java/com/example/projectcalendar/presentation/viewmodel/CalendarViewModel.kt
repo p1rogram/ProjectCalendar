@@ -24,11 +24,12 @@ import com.example.projectcalendar.presentation.ui.mapper.CalendarGridMapper
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.collections.immutable.persistentListOf
 import kotlinx.collections.immutable.toImmutableList
+import kotlinx.collections.immutable.toPersistentMap
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
-import kotlinx.coroutines.flow.update  // ✅ ВАЖНЫЙ ИМПОРТ!
+import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 import java.time.LocalDate
 import java.time.LocalDateTime
@@ -58,9 +59,7 @@ class CalendarViewModel @Inject constructor(
     )
     val uiState: StateFlow<CalendarUiState> = _uiState.asStateFlow()
 
-    // ✅ AtomicBoolean вместо @Volatile — полная потокобезопасность
     private val isSaving = AtomicBoolean(false)
-
     private var loadMonthJob: Job? = null
 
     @RequiresApi(Build.VERSION_CODES.O)
@@ -69,14 +68,22 @@ class CalendarViewModel @Inject constructor(
 
         loadMonthJob = viewModelScope.launch {
             try {
+                val targetMonth = YearMonth.of(year, month)
+
+                // ✅ Проверяем кэш
+                val cachedPages = _uiState.value.monthsCache[targetMonth]
+                if (cachedPages != null) {
+                    Log.d("CalendarViewModel", "Using cached pages for $targetMonth")
+                    _uiState.update { it.copy(pages = cachedPages, status = LoadStatus.Success) }
+                    preloadAdjacentMonths(targetMonth)
+                    return@launch
+                }
+
                 if (_uiState.value.selectedDate.year != year || _uiState.value.selectedDate.monthValue != month) {
                     _uiState.update { it.copy(selectedDate = LocalDate.of(year, month, 1)) }
-                    Log.d("uiState", " !=year != month uiState updated")
                 }
                 if (showLoading) {
-                    _uiState.update { it.copy(status = LoadStatus.Loading)
-                    }
-                    Log.d("uiState", "status = LoadStatus.Loading uiState updated")
+                    _uiState.update { it.copy(status = LoadStatus.Loading) }
                 }
 
                 val firstDay = LocalDate.of(year, month, 1)
@@ -107,9 +114,18 @@ class CalendarViewModel @Inject constructor(
                     }
                     .toImmutableList()
 
-                // ✅ АТОМАРНОЕ обновление
-                _uiState.update { it.copy(pages = newPages, status = LoadStatus.Success) }
-                Log.d("uiState", "atomic update uiState updated")
+                // ✅ Сохраняем в кэш
+                _uiState.update { state ->
+                    val newCache = state.monthsCache.toPersistentMap().put(targetMonth, newPages)
+                    state.copy(
+                        pages = newPages,
+                        monthsCache = newCache,
+                        status = LoadStatus.Success
+                    )
+                }
+
+                preloadAdjacentMonths(targetMonth)
+
             } catch (e: Exception) {
                 if (e is kotlinx.coroutines.CancellationException) throw e
                 _uiState.update { it.copy(status = LoadStatus.Error) }
@@ -118,23 +134,86 @@ class CalendarViewModel @Inject constructor(
         }
     }
 
+    private fun preloadAdjacentMonths(currentMonth: YearMonth) {
+        val prevMonth = currentMonth.minusMonths(1)
+        val nextMonth = currentMonth.plusMonths(1)
+
+        if (_uiState.value.monthsCache[prevMonth] == null) {
+            viewModelScope.launch {
+                try {
+                    val pages = loadMonthData(prevMonth)
+                    _uiState.update { state ->
+                        state.copy(
+                            monthsCache = state.monthsCache.toPersistentMap().put(prevMonth, pages)
+                        )
+                    }
+                    Log.d("CalendarViewModel", "Preloaded $prevMonth")
+                } catch (e: Exception) {
+                    Log.e("CalendarViewModel", "Error preloading $prevMonth", e)
+                }
+            }
+        }
+
+        if (_uiState.value.monthsCache[nextMonth] == null) {
+            viewModelScope.launch {
+                try {
+                    val pages = loadMonthData(nextMonth)
+                    _uiState.update { state ->
+                        state.copy(
+                            monthsCache = state.monthsCache.toPersistentMap().put(nextMonth, pages)
+                        )
+                    }
+                    Log.d("CalendarViewModel", "Preloaded $nextMonth")
+                } catch (e: Exception) {
+                    Log.e("CalendarViewModel", "Error preloading $nextMonth", e)
+                }
+            }
+        }
+    }
+
+    private suspend fun loadMonthData(yearMonth: YearMonth): kotlinx.collections.immutable.ImmutableList<CalendarPage> {
+        val firstDay = yearMonth.atDay(1)
+        val emptyGrid = mapper.map(firstDay)
+        val monthData = getCalendarMonthUseCase.invoke(yearMonth).associateBy { it.date }
+
+        val filledGrid = emptyGrid.map { week ->
+            week.map { monthData[it?.date] ?: it }.toImmutableList()
+        }.toImmutableList()
+
+        return filledGrid
+            .chunked(4)
+            .map { weekChunk ->
+                if (weekChunk.size < 4) {
+                    weekChunk + List(4 - weekChunk.size) {
+                        List(7) { null as CalendarDay? }.toImmutableList()
+                    }
+                } else {
+                    weekChunk
+                }
+            }
+            .mapIndexed { pageIndex, column ->
+                CalendarPage(
+                    yearMonth = yearMonth,
+                    grid = column.toImmutableList(),
+                    isSecondHalf = pageIndex > 0
+                )
+            }
+            .toImmutableList()
+    }
+
     fun onDayClick(date: LocalDate) {
-        Log.d("dayClicking", "Day clicked $date")
         _uiState.update { it.copy(selectedDate = date) }
     }
 
     fun onShowDetailsClick() {
-        Log.d("DetailsClicked", "Show details clicked")
         _uiState.update { it.copy(showDetailsSheet = true) }
     }
 
     fun onAddClick(mode: AddMode) {
-        Log.d("CalendarViewModel", "onAddClick called with mode: $mode")
-        // ✅ Атомарная проверка + установка
         _uiState.update { state ->
             if (state.showAddItemSheet) {
                 Log.w("CalendarViewModel", "AddItemSheet already open, ignoring click")
-                state  // Возвращаем то же состояние
+                state
             } else {
                 state.copy(showAddItemSheet = true, currentAddMode = mode)
             }
@@ -142,7 +221,6 @@ class CalendarViewModel @Inject constructor(
     }
 
     fun closeSheets() {
-        Log.d("closeSheet", "sheets were Closed")
         _uiState.update {
             it.copy(
                 showAddItemSheet = false,
@@ -154,7 +232,6 @@ class CalendarViewModel @Inject constructor(
 
     @RequiresApi(Build.VERSION_CODES.O)
     fun onAddItem(command: AddItemCommand) {
-        // ✅ Атомарная проверка и установка флага
         if (!isSaving.compareAndSet(false, true)) {
             Log.w("CalendarViewModel", "onAddItem called while saving, ignoring")
             return
@@ -213,13 +290,10 @@ class CalendarViewModel @Inject constructor(
                     }
                 }
 
-                // ✅ СНАЧАЛА все INSERT'ы, ПОТОМ ОДИН SELECT и ОДНО обновление
-                // Это критично! Иначе каждая корутина будет читать "свою версию" БД
                 val updatedEvents = eventRepository.getEventsForDateRangeOnce(command.date, command.date)
                 val updatedTasks = taskRepository.getTasksForDateRangeOnce(command.date, command.date)
                 val updatedNotes = noteRepository.getNotesForDateRangeOnce(command.date, command.date)
 
-                // ✅ АТОМАРНОЕ обновление стейта
                 updateDayIndicatorsAtomic(command.date, updatedEvents, updatedTasks, updatedNotes)
 
             } catch (e: Exception) {
@@ -231,12 +305,6 @@ class CalendarViewModel @Inject constructor(
         }
     }
 
-    /**
-     * ✅ АТОМАРНОЕ обновление индикаторов дня.
-     * Использует StateFlow.update { } — CAS-операция, которая гарантирует,
-     * что если другой поток изменит стейт между чтением и записью,
-     * операция повторится с новым значением.
-     */
     private fun updateDayIndicatorsAtomic(
         date: LocalDate,
         newEvents: List<Event>,
@@ -247,6 +315,7 @@ class CalendarViewModel @Inject constructor(
         Log.i("updInd", "new TasksCount : ${newTasks.size}")
         Log.i("updInd", "new NotesCount : ${newNotes.size}")
         Log.i("updInd", "new EventsCount : ${newEvents.size}")
+
         _uiState.update { state ->
             var anyPageChanged = false
 
@@ -276,10 +345,18 @@ class CalendarViewModel @Inject constructor(
                 }
             }.toImmutableList()
 
-            if (anyPageChanged) {
-                state.copy(pages = updatedPages)
+            // ✅ Также обновляем кэш
+            val month = YearMonth.from(date)
+            val newCache = if (state.monthsCache.containsKey(month)) {
+                state.monthsCache.toPersistentMap().put(month, updatedPages)
             } else {
-                state  // Ничего не изменилось
+                state.monthsCache
+            }
+
+            if (anyPageChanged) {
+                state.copy(pages = updatedPages, monthsCache = newCache)
+            } else {
+                state
             }
         }
     }
