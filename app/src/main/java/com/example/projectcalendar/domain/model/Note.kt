@@ -1,5 +1,6 @@
 package com.example.projectcalendar.domain.model
 
+import android.icu.text.CaseMap
 import java.time.LocalDate
 import java.time.LocalDateTime
 
@@ -8,7 +9,8 @@ data class Note(
     val date: LocalDate,
     val content: String,
     val createdAt: LocalDateTime,
-    val updatedAt: LocalDateTime?
+    val updatedAt: LocalDateTime?,
+    val title: String
 ) {
     fun isEmpty(): Boolean {
         return content.isBlank()

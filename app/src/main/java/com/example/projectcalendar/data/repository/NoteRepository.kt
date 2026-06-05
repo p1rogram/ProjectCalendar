@@ -24,7 +24,8 @@ class NoteRepository(
         date = date.toLocalDate(),
         content = content,
         createdAt = createdAt.toLocalDateTime(),
-        updatedAt = updatedAt?.toLocalDateTime()
+        updatedAt = updatedAt?.toLocalDateTime(),
+        title = title
     )
 
     private fun Note.toEntity(): NoteEntity = NoteEntity(
@@ -32,7 +33,8 @@ class NoteRepository(
         date = date.toStartOfDayMillis(),
         content = content,
         createdAt = createdAt.toEpochMillis(),
-        updatedAt = updatedAt?.toEpochMillis()
+        updatedAt = updatedAt?.toEpochMillis(),
+        title = title
     )
 
     // ==========================================

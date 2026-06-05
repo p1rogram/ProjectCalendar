@@ -16,6 +16,8 @@ data class NoteEntity(
     @PrimaryKey(autoGenerate = true)
     @ColumnInfo(name = "id")
     val id: Long = 0,
+    @ColumnInfo(name = "title")
+    val title : String,
 
     @ColumnInfo(name = "date")
     val date: Long,  // Дата заметки (начало дня в миллисекундах)

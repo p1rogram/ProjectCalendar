@@ -44,6 +44,8 @@ kotlin {
 
 dependencies {
 
+    implementation(libs.androidx.compose.animation)
+    implementation(libs.transport.api)
     coreLibraryDesugaring(libs.desugar.jdk.libs)
     implementation(libs.androidx.core.ktx)
     implementation(libs.androidx.lifecycle.runtime.ktx)

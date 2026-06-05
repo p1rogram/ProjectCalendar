@@ -33,6 +33,7 @@ import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 import java.time.LocalDate
 import java.time.LocalDateTime
+import java.time.LocalTime
 import java.time.YearMonth
 import java.util.concurrent.atomic.AtomicBoolean
 import javax.inject.Inject
@@ -61,7 +62,8 @@ class CalendarViewModel @Inject constructor(
 
     private val isSaving = AtomicBoolean(false)
     private var loadMonthJob: Job? = null
-
+    // ✅ Вспомогательный класс для возврата 4 значений
+    private data class Quad<A, B, C, D>(val first: A, val second: B, val third: C, val fourth: D)
     @RequiresApi(Build.VERSION_CODES.O)
     fun loadMonth(year: Int, month: Int, showLoading: Boolean = true) {
         loadMonthJob?.cancel()
@@ -134,6 +136,7 @@ class CalendarViewModel @Inject constructor(
         }
     }
 
+    @RequiresApi(Build.VERSION_CODES.O)
     private fun preloadAdjacentMonths(currentMonth: YearMonth) {
         val prevMonth = currentMonth.minusMonths(1)
         val nextMonth = currentMonth.plusMonths(1)
@@ -170,7 +173,82 @@ class CalendarViewModel @Inject constructor(
             }
         }
     }
+    // ==========================================
+// ПЕРЕМЕЩЕНИЕ ЭЛЕМЕНТОВ В СВОДКЕ
+// ==========================================
 
+    fun reorderEvent(fromIndex: Int, toIndex: Int) {
+        val date = _uiState.value.selectedDate
+        _uiState.update { state ->
+            val updatedPages = state.pages.map { page ->
+                val updatedGrid = page.grid.map { column ->
+                    column.map { cell ->
+                        if (cell?.date == date) {
+                            val events = cell.events.toMutableList()
+                            if (fromIndex in events.indices && toIndex in events.indices) {
+                                val item = events.removeAt(fromIndex)
+                                events.add(toIndex, item)
+                            }
+                            cell.copy(events = events.toImmutableList())
+                        } else {
+                            cell
+                        }
+                    }.toImmutableList()
+                }.toImmutableList()
+                page.copy(grid = updatedGrid)
+            }.toImmutableList()
+            state.copy(pages = updatedPages)
+        }
+    }
+
+    fun reorderTask(fromIndex: Int, toIndex: Int) {
+        val date = _uiState.value.selectedDate
+        _uiState.update { state ->
+            val updatedPages = state.pages.map { page ->
+                val updatedGrid = page.grid.map { column ->
+                    column.map { cell ->
+                        if (cell?.date == date) {
+                            val tasks = cell.tasks.toMutableList()
+                            if (fromIndex in tasks.indices && toIndex in tasks.indices) {
+                                val item = tasks.removeAt(fromIndex)
+                                tasks.add(toIndex, item)
+                            }
+                            cell.copy(tasks = tasks.toImmutableList())
+                        } else {
+                            cell
+                        }
+                    }.toImmutableList()
+                }.toImmutableList()
+                page.copy(grid = updatedGrid)
+            }.toImmutableList()
+            state.copy(pages = updatedPages)
+        }
+    }
+
+    fun reorderNote(fromIndex: Int, toIndex: Int) {
+        val date = _uiState.value.selectedDate
+        _uiState.update { state ->
+            val updatedPages = state.pages.map { page ->
+                val updatedGrid = page.grid.map { column ->
+                    column.map { cell ->
+                        if (cell?.date == date) {
+                            val notes = cell.notes.toMutableList()
+                            if (fromIndex in notes.indices && toIndex in notes.indices) {
+                                val item = notes.removeAt(fromIndex)
+                                notes.add(toIndex, item)
+                            }
+                            cell.copy(notes = notes.toImmutableList())
+                        } else {
+                            cell
+                        }
+                    }.toImmutableList()
+                }.toImmutableList()
+                page.copy(grid = updatedGrid)
+            }.toImmutableList()
+            state.copy(pages = updatedPages)
+        }
+    }
+    @RequiresApi(Build.VERSION_CODES.O)
     private suspend fun loadMonthData(yearMonth: YearMonth): kotlinx.collections.immutable.ImmutableList<CalendarPage> {
         val firstDay = yearMonth.atDay(1)
         val emptyGrid = mapper.map(firstDay)
@@ -244,13 +322,35 @@ class CalendarViewModel @Inject constructor(
                 when (command.mode) {
                     AddMode.Event -> {
                         Log.d("CalendarViewModel", "Event creating is initiated")
+
+                        // ✅ Логика определения времени
+                        val (finalStartTime, finalEndTime, finalIsAllDay, finalIsReminder) = when {
+                            // Если "Весь день"
+                            command.isAllDay -> {
+                                val start = LocalTime.of(0, 0)
+                                val end = LocalTime.of(23, 59)
+                                Quad(start, end, true, false)
+                            }
+                            // Если "Напоминание" — одно время
+                            command.isReminder -> {
+                                val time = command.startTime ?: LocalTime.of(9, 0)
+                                Quad(time, time, false, true)
+                            }
+                            // Обычное событие с временем начала и окончания
+                            else -> {
+                                val start = command.startTime ?: LocalTime.of(9, 0)
+                                val end = command.endTime ?: start.plusHours(1)
+                                Quad(start, end, false, false)
+                            }
+                        }
+
                         val newEvent = Event(
                             id = null,
                             title = command.title,
                             description = command.description.takeIf { it.isNotBlank() },
-                            startDateTime = command.date.atTime(command.time ?: java.time.LocalTime.MIDNIGHT),
-                            isAllDay = command.time == null,
-                            isReminder = false,
+                            startDateTime = command.date.atTime(finalStartTime),
+                            isAllDay = finalIsAllDay,
+                            isReminder = finalIsReminder,
                             isImportant = command.isImportant,
                             recurrenceType = RecurrenceType.NONE,
                             customIntervalDays = 0,
@@ -258,6 +358,9 @@ class CalendarViewModel @Inject constructor(
                             createdAt = LocalDateTime.now(),
                             updatedAt = null
                         )
+
+                        // ✅ Сохраняем endTime в description если не весь день и не напоминание
+                        // (или можно добавить поле endTime в Event, если нужно)
                         eventRepository.addEvent(newEvent)
                     }
 
@@ -284,7 +387,8 @@ class CalendarViewModel @Inject constructor(
                             date = command.date,
                             content = command.description,
                             createdAt = LocalDateTime.now(),
-                            updatedAt = null
+                            updatedAt = null,
+                            title = command.title
                         )
                         noteRepository.addNote(newNote)
                     }
@@ -358,14 +462,6 @@ class CalendarViewModel @Inject constructor(
             } else {
                 state
             }
-        }
-    }
-
-    @RequiresApi(Build.VERSION_CODES.O)
-    private fun refreshCurrentMonth() {
-        val currentMonth = _uiState.value.pages.firstOrNull()?.yearMonth
-        currentMonth?.let { ym ->
-            loadMonth(ym.year, ym.monthValue, showLoading = false)
         }
     }
 }
